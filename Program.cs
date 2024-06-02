@@ -35,7 +35,7 @@ class Program {
                return;
           };
 
-          // Add Logging Callback
+          // Add Callbacks
           SocketClient.Log += LogAsync;
           SocketClient.Ready += ReadyAsync;
           SocketClient.SlashCommandExecuted += SlashCommandHandler;
