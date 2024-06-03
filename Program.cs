@@ -8,6 +8,12 @@ using DotNetEnv;
 class Program {
      private static IServiceProvider? ServiceProvider;
 
+     private static readonly DiscordSocketConfig SocketConfig = new DiscordSocketConfig()
+     {
+          GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
+          AlwaysDownloadUsers = true,
+     };
+
      public static async Task Main(string[] args) {
           // Check and Set Env variables.
           Env.Load();
@@ -24,7 +30,7 @@ class Program {
           }
 
           ServiceProvider = new ServiceCollection()
-               .AddSingleton<DiscordSocketClient>()
+               .AddSingleton<DiscordSocketClient>(_ => new DiscordSocketClient(SocketConfig))
                .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
                .AddSingleton<ILogger, ComboLogger>()
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, null))
@@ -36,7 +42,7 @@ class Program {
           // Enable SocketClient Logging
           SocketClient.Log += ServiceProvider.GetRequiredService<ILogger>().LogAsync;
 
-          // Initialize Interaction Handler 
+          // Initialize Interaction Handler
           await ServiceProvider.GetRequiredService<InteractionHandler>().InitializeAsync();
 
           // Connect to Discord Gateway
@@ -44,18 +50,5 @@ class Program {
           await SocketClient.StartAsync();
 
           await Task.Delay(Timeout.Infinite);
-     }
-
-     private static Task SlashCommandHandler(SocketSlashCommand command) {
-          switch (command.CommandName) {
-               case "ping":
-                    command.RespondAsync($"Command ID: {command.CommandId}, Command Name: {command.CommandName}");
-                    break;
-               default:
-                    command.RespondAsync($"Unknown Command????? HOW ?");
-                    Console.WriteLine($"Unknown Command: {command.CommandName}");
-                    break;
-          }
-          return Task.CompletedTask;
      }
 }
