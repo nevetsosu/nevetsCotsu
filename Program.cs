@@ -1,11 +1,12 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using Discord.Webhook;
+using Discord.Interactions;
+using Microsoft.Extensions.DependencyInjection;
 using DotNetEnv;
 
 class Program {
-     private static DiscordSocketClient? SocketClient;
-     private static DiscordWebhookClient? WebhookClient;
+     private static IServiceProvider? ServiceProvider;
 
      public static async Task Main(string[] args) {
           // Check and Set Env variables.
@@ -17,34 +18,32 @@ class Program {
           }
 
           string? LOG_WEBHOOK_URL = Environment.GetEnvironmentVariable("LOG_WEBHOOK_URL");
-          if (string.IsNullOrEmpty(DISCORD_TOKEN)) {
+          if (string.IsNullOrEmpty(LOG_WEBHOOK_URL)) {
                Console.Error.WriteLine("[FATAL] Failed to acquire LOG_WEBHOOK_URL as an environment variable");
                return;
           }
 
-          // Create and Validate WebhookClient
-          WebhookClient = new DiscordWebhookClient(LOG_WEBHOOK_URL);
-          if (WebhookClient == null) {
-               Console.Error.WriteLine("[WARN] Failed to connect Webhook");
-          }
+          ServiceProvider = new ServiceCollection()
+               .AddSingleton<DiscordSocketClient>()
+               .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
+               .AddSingleton<ILogger, ComboLogger>()
+               .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, null))
+               .AddSingleton<InteractionHandler>()
+               .BuildServiceProvider();
 
-          // Create and Validate SocketClient
-          SocketClient = new DiscordSocketClient();
-          if (SocketClient == null) {
-               Console.Error.WriteLine("[FATAL] DiscordSocketClient returned null");
-               return;
-          };
+          DiscordSocketClient SocketClient = ServiceProvider.GetRequiredService<DiscordSocketClient>();
 
-          // Add Callbacks
-          SocketClient.Log += LogAsync;
-          SocketClient.Ready += ReadyAsync;
-          SocketClient.SlashCommandExecuted += SlashCommandHandler;
+          // Enable SocketClient Logging
+          SocketClient.Log += ServiceProvider.GetRequiredService<ILogger>().LogAsync;
+
+          // Initialize Interaction Handler 
+          await ServiceProvider.GetRequiredService<InteractionHandler>().InitializeAsync();
 
           // Connect to Discord Gateway
           await SocketClient.LoginAsync(TokenType.Bot, DISCORD_TOKEN);
           await SocketClient.StartAsync();
 
-          await Task.Delay(-1);
+          await Task.Delay(Timeout.Infinite);
      }
 
      private static Task SlashCommandHandler(SocketSlashCommand command) {
@@ -58,21 +57,5 @@ class Program {
                     break;
           }
           return Task.CompletedTask;
-     }
-
-     private static Task ReadyAsync() {
-          // Register a Ping-Pong Command
-          var command = new SlashCommandBuilder();
-          command.WithName("ping");
-          command.WithDescription("Responds with pong!");
-
-          if (SocketClient != null) SocketClient.CreateGlobalApplicationCommandAsync(command.Build());
-          return Task.CompletedTask;
-     }
-
-     private static async Task LogAsync(LogMessage message) {
-          Console.WriteLine($"[General/{message.Severity}] {message}");
-
-          if (WebhookClient != null) await WebhookClient.SendMessageAsync($"```[nevetsCotsu] {message.ToString()}```");
      }
 }
