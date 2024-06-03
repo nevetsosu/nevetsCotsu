@@ -8,10 +8,15 @@ using DotNetEnv;
 class Program {
      private static IServiceProvider? ServiceProvider;
 
-     private static readonly DiscordSocketConfig SocketConfig = new DiscordSocketConfig()
+     private static readonly DiscordSocketConfig SocketConfig = new()
      {
           GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
           AlwaysDownloadUsers = true,
+          LogLevel = LogSeverity.Debug,
+     };
+
+     private static readonly InteractionServiceConfig ServiceConfig = new() {
+          LogLevel = LogSeverity.Debug,
      };
 
      public static async Task Main(string[] args) {
@@ -33,7 +38,7 @@ class Program {
                .AddSingleton<DiscordSocketClient>(_ => new DiscordSocketClient(SocketConfig))
                .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
                .AddSingleton<ILogger, ComboLogger>()
-               .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, null))
+               .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
                .AddSingleton<InteractionHandler>()
                .BuildServiceProvider();
 

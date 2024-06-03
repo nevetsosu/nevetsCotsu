@@ -16,7 +16,7 @@ public abstract class BaseLogger : ILogger {
 }
 
 public class ComboLogger : BaseLogger {
-     DiscordWebhookClient? WebhookClient;
+     DiscordWebhookClient WebhookClient;
      public ComboLogger (DiscordWebhookClient client) {
           WebhookClient = client;
      }
