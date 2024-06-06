@@ -12,9 +12,13 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
           Logger = logger;
      }
 
-     [SlashCommand("ping", "respond with pong")]
+     [SlashCommand("ping", "respond with pong and latency")]
      public async Task Ping() {
-          await RespondAsync("pong!");
+          Embed embed = new EmbedBuilder()
+                    .WithTitle("Pong")
+                    .AddField(new EmbedFieldBuilder().WithName("Gateway Latency").WithValue($"{Context.Client.Latency}ms"))
+                    .Build();
+          await RespondAsync(embed: embed);
      }
 
      [SlashCommand("mute", "mute a user")]
@@ -23,17 +27,10 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
                await RespondAsync("user is already muted");
                return;
           }
-
-          string response = "done";
-          try {
-               await user.ModifyAsync(x => x.Mute = true);
-          } catch {
-               response = "failed to mute user";
-          } 
-          
-          await RespondAsync(response);
+          bool success = await TrySetMuteUser(user, true);
+          await RespondAsync(success ? "done" : "failed to mute user");
      }
-     
+
      [SlashCommand("unmute", "unmute a user")]
      public async Task UnMuteUser(SocketGuildUser user) {
           if (!user.IsMuted) {
@@ -41,12 +38,16 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
                return;
           }
 
-          string response = "done";
+          bool success = await TrySetMuteUser(user, false);
+          await RespondAsync(success ? "done" : "failed to unmute user");
+     }
+
+     private async Task<bool> TrySetMuteUser(IGuildUser user, bool mute) {
           try {
-               await user.ModifyAsync(x => x.Mute = false);
+               await user.ModifyAsync(x => x.Mute = mute);
+               return true;
           } catch {
-               response = "failed to unmute user";
+               return false;
           }
-          await RespondAsync(response);
      }
 }

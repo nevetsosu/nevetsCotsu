@@ -10,7 +10,8 @@ class Program {
 
      private static readonly DiscordSocketConfig SocketConfig = new()
      {
-          GatewayIntents = GatewayIntents.GuildVoiceStates | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.Guilds,
+          GatewayIntents = GatewayIntents.GuildVoiceStates | GatewayIntents.GuildMembers | GatewayIntents.Guilds,
+          // GatewayIntents.GuildPresences
           AlwaysDownloadUsers = true,
           LogLevel = LogSeverity.Debug,
      };
@@ -36,9 +37,9 @@ class Program {
 
           ServiceProvider = new ServiceCollection()
                .AddSingleton<DiscordSocketClient>(_ => new DiscordSocketClient(SocketConfig))
-               .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
-               .AddSingleton<ILogger, ComboLogger>()
-               // .AddSingleton<ILogger, DefaultLogger>()
+               // .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
+               // .AddSingleton<ILogger, ComboLogger>()
+               .AddSingleton<ILogger, DefaultLogger>()
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
                .AddSingleton<InteractionHandler>()
                .BuildServiceProvider();
