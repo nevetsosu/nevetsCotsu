@@ -4,6 +4,12 @@ using Discord.Webhook;
 using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using DotNetEnv;
+using System.Collections.Concurrent;
+using Discord.Audio;
+
+public struct GuildData {
+     public IAudioClient? AudioClient;
+}
 
 class Program {
      private static IServiceProvider? ServiceProvider;
@@ -11,7 +17,6 @@ class Program {
      private static readonly DiscordSocketConfig SocketConfig = new()
      {
           GatewayIntents = GatewayIntents.GuildVoiceStates | GatewayIntents.GuildMembers | GatewayIntents.Guilds,
-          // GatewayIntents.GuildPresences
           AlwaysDownloadUsers = true,
           LogLevel = LogSeverity.Debug,
      };
@@ -42,6 +47,7 @@ class Program {
                .AddSingleton<ILogger, DefaultLogger>()
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
                .AddSingleton<InteractionHandler>()
+               .AddSingleton<ConcurrentDictionary<ulong, GuildData>>()
                .BuildServiceProvider();
 
           DiscordSocketClient SocketClient = ServiceProvider.GetRequiredService<DiscordSocketClient>();

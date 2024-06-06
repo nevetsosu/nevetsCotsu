@@ -1,14 +1,18 @@
+using System.Collections.Concurrent;
 using Discord;
+using Discord.WebSocket;
 using Discord.Audio;
 using Discord.Interactions;
+using System.Diagnostics;
 
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static readonly ulong AdwinUserID = 390610273892827136UL;
-
      ILogger Logger;
+     ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public AdwinModule(ILogger logger) {
+     public AdwinModule(ILogger logger, ConcurrentDictionary<ulong, GuildData> guildDataDict) {
           Logger = logger;
+          GuildDataDict = guildDataDict;
      }
 
      [SlashCommand("adwin", "toggle mute on adwin")]
@@ -48,78 +52,155 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           }
      }
 
-     [SlashCommand("join", "tells the bot to join the channel")]
-     private async Task TryJoinVoiceChannel() {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/TryJoinVoiceChannel] " + str);
-
-          if (Context.Guild == null) {
-               await Log("Context.Guild null");
-               await RespondAsync("failed to join");
-               return;
-          }
-
+     [SlashCommand("join", "tells the bot to join the channel", runMode: RunMode.Async)]
+     private async Task JoinVoice() {
           IVoiceChannel? vChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (vChannel == null) {
-               await Log("voiceChannel null");
-               await RespondAsync("you are not current in a voice channel!");
-               return;
-          }
-
-          if (Context.Guild.CurrentUser == null) {
-               await Log("null Context.Guild.CurrentUser");
-               await RespondAsync("failed to join");
+               await RespondAsync("you are not currently in a voice channel!");
                return;
           }
 
           if (Context.Guild.CurrentUser.VoiceChannel == vChannel) {
                await RespondAsync("Bot is already in current channel");
-          }
-
-          try {
-               await vChannel.ConnectAsync();
-
-          } catch (Exception e){
-               await Log("Failed to connect to voice Channel " + e.ToString());
-               await RespondAsync("failed to join");
                return;
           }
 
-          await RespondAsync("joined!");
+          IAudioClient? audioClient = await TryJoinVoiceChannel();
+
+          if (audioClient == null) {
+               await RespondAsync("failed join");
+               return;
+          }
+
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData { AudioClient = audioClient });
+          guildData.AudioClient = audioClient;
+
+          await RespondAsync("joined");
      }
 
-     [SlashCommand("leave", "leave current voice channel")]
-     private async Task TryLeaveVoiceChannel() {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/TryLeaveVoiceChannel] " + str);
-
-          if (Context.Guild == null) {
-               await Log("null Context.Guild");
-               await RespondAsync("failed to leave");
-               return;
+     private async Task<IAudioClient?> TryJoinVoiceChannel() {
+          var Log = async (string str) => await Logger.LogAsync("[Debug/TryJoinVoiceChannel] " + str);
+          if (Context.Guild?.CurrentUser == null) {
+               await Log("failed initial check");
+               return null;
           }
 
-          if (Context.Guild.CurrentUser == null) {
-               await Log("null Context.Guild.CurrentUser");
-               await RespondAsync("failed to leave");
-               return;
+          IVoiceChannel? vChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          if (vChannel == null) {
+               await Log("user is not currently in a voice channel!");
+               return null;
           }
 
-          if (Context.Guild.CurrentUser.VoiceChannel == null) {
+
+          IAudioClient? audioClient;
+          try {
+               audioClient = await vChannel.ConnectAsync(selfDeaf : true, selfMute : false);
+          } catch (Exception e){
+               await Log("Failed to connect to voice Channel " + e.ToString());
+               return null;
+          }
+
+          if (audioClient == null) {
+               await Log("ConnectAsync returned null?");
+          }
+
+          return audioClient;
+     }
+
+
+     [SlashCommand("leave", "leave current voice channel", runMode: RunMode.Async)]
+     private async Task LeaveVoice() {
+
+          if (Context.Guild?.CurrentUser?.VoiceChannel == null) {
                await RespondAsync("Bot is not connected to any voice Channel");
                return;
           }
-
           if (Context.Guild.CurrentUser.VoiceChannel != (Context.User as IGuildUser)?.VoiceChannel) {
                await RespondAsync("User is not in the same voice channel!");
                return;
           }
 
+          bool success = await TryLeaveVoiceChannel();
+          await RespondAsync(success ? "done!" : "failed to leave");
+     }
+
+     private async Task<bool> TryLeaveVoiceChannel() {
+          var Log = async (string str) => await Logger.LogAsync("[Debug/TryLeaveVoiceChannel] " + str);
+
+          if (Context.Guild?.CurrentUser == null) {
+               await Log("failed initial check");
+               return false;
+          }
+
+          if (Context.Guild.CurrentUser.VoiceChannel == null) {
+               await Log("bot is already disconnected");
+               return true;
+          }
+
           try {
                await Context.Guild.CurrentUser.VoiceChannel.DisconnectAsync();
+               return true;
           } catch (Exception e) {
-               await RespondAsync("failed to leave " + e.ToString());
+               await Log("failed to leave: " + e.ToString());
+               return false;
+          }
+     }
+
+     [SlashCommand("locos", "play locos tacos", runMode: RunMode.Async)]
+     private async Task TryPlaySound() {
+          var Log = async (string str) => await Logger.LogAsync("[Debug/TryPlaySound] " + str);
+
+          IAudioClient? audioClient = await TryJoinVoiceChannel();
+          if (audioClient == null) {
+               await RespondAsync("audio client null");
+               return;
+          }
+          await RespondAsync("playing...");
+
+          const string filepath = @"/home/nevets/code/dotnetDiscordBot/locostacos.mp3";
+          if (!File.Exists(filepath))
+          {
+               await Log($"File '{filepath}' not found.");
                return;
           }
 
-          await RespondAsync("done!");
+          // begin encoding with ffmpeg
+          Process? ffmpeg = CreateStream(filepath);
+          if (ffmpeg == null) {
+               await Log("Failed to load ffmpeg");
+               return;
+          }
+
+          // stream results of ffmpeg to audio client
+          using (var output = ffmpeg.StandardOutput.BaseStream)
+          using (var stream = audioClient.CreatePCMStream(AudioApplication.Music)) {
+               try {
+                    await output.CopyToAsync(stream);
+                    await Log("audio playback finished");
+               } catch (OperationCanceledException) {
+                    await Log("Audio Write Canceled (Likely due to Disconnect)");
+               } catch (Exception e) {
+                    await Log($"Exception during audio playback: {e}");
+               }
+
+               await Log("disconnecting");
+               ffmpeg.Dispose();
+               await audioClient.StopAsync();
+          }
+
+          await ModifyOriginalResponseAsync((m) => m.Content = "done!");
+
+          await Log("EXITING TRYPLAYSOUND");
+     }
+
+     private static Process? CreateStream(string path)
+     {
+          return Process.Start(new ProcessStartInfo
+          {
+               FileName = "ffmpeg",
+               Arguments = $"-hide_banner -loglevel panic -i \"{path}\" -ac 2 -f s16le -ar 48000 pipe:1",
+               UseShellExecute = false,
+               RedirectStandardOutput = true,
+          });
      }
 }
