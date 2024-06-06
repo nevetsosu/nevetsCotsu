@@ -10,7 +10,7 @@ class Program {
 
      private static readonly DiscordSocketConfig SocketConfig = new()
      {
-          GatewayIntents = GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
+          GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
           // GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
           AlwaysDownloadUsers = true,
           LogLevel = LogSeverity.Debug,

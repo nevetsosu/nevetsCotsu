@@ -19,6 +19,11 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
 
      [SlashCommand("mute", "mute a user")]
      public async Task MuteUser(SocketGuildUser user) {
+          if (user.IsMuted) {
+               await RespondAsync("user is already muted");
+               return;
+          }
+
           string response = "done";
           try {
                await user.ModifyAsync(x => x.Mute = true);
@@ -31,6 +36,10 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
 
      [SlashCommand("unmute", "unmute a user")]
      public async Task UnMuteUser(SocketGuildUser user) {
+          if (!user.IsMuted) {
+               await RespondAsync("user is already unmuted");
+               return;
+          }
 
           string response = "done";
           try {
