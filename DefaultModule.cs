@@ -29,11 +29,11 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
                await user.ModifyAsync(x => x.Mute = true);
           } catch {
                response = "failed to mute user";
-          } finally {
-               await RespondAsync(response);
-          }
+          } 
+          
+          await RespondAsync(response);
      }
-
+     
      [SlashCommand("unmute", "unmute a user")]
      public async Task UnMuteUser(SocketGuildUser user) {
           if (!user.IsMuted) {
@@ -46,8 +46,7 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
                await user.ModifyAsync(x => x.Mute = false);
           } catch {
                response = "failed to unmute user";
-          } finally {
-               await RespondAsync(response);
           }
+          await RespondAsync(response);
      }
 }
