@@ -36,7 +36,7 @@ public class InteractionHandler {
      private async Task InteractionCreatedAsync(SocketInteraction interaction) {
           try {
                SocketInteractionContext context = new SocketInteractionContext(Client, interaction);
-               var result = await Handler.ExecuteCommandAsync(context, ServiceProvider);
+               IResult result = await Handler.ExecuteCommandAsync(context, ServiceProvider);
 
                // Due to async nature of InteractionFramework, the result here may always be success.
                // That's why we also need to handle the InteractionExecuted event.
