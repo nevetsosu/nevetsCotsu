@@ -3,3 +3,9 @@
 libopus-dev needs to be installed so it can be linked with. (apt)
 ffmpeg needs to be installed so it can be linked with. (apt)
 libsodium for voice
+
+consider using NAudio for audio processing post FFMpeg
+
+                    AudioManager
+                    FFMpegHandler
+SpotifyAPIAudioManager   YoutubeAPIAudioManager   Basic File Playing Audio Manager
