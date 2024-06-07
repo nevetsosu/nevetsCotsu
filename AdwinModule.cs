@@ -185,7 +185,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                     do {
                          // Execute as many as there were calls
                          do {
-                              await ffmpeg.ReadFileToStream(filepath, stream, CancellationToken.None);
+                              await ffmpeg.ReadFileToStream(filepath, stream, CancellationToken.None, 0.2f);
                          } while (Interlocked.Decrement(ref LocosTacos.CallCount) > 0);
 
                          await Task.Delay(1000); // wait 1 seconds before disconnect to see if there are more requests

@@ -16,11 +16,11 @@ namespace AudioPipeline {
                Volume = DefaultVolume;
           }
 
-          public void SetVolume(uint volume) {
-               Volume = uint.Clamp(volume, 0, 100);
+          public void SetVolume(float volume) {
+               Volume = float.Clamp(volume, 0.0f, 1.0f);
           }
 
-          private async Task<Process?> TrySpawnFFMPEG(string? inFilePath, string? outFilePath) {
+          private async Task<Process?> TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f) {
                var Log = async (string str) => await Logger.LogAsync("[Debug/TrySpawnFFMPEG] " + str);
 
                ProcessStartInfo startInfo = new ProcessStartInfo() {
@@ -53,14 +53,14 @@ namespace AudioPipeline {
                     outSource = outFilePath;
                }
 
-               startInfo.Arguments = $"-hide_banner -loglevel panic -i {inSource} -filter:a \"volume={Volume:0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
+               startInfo.Arguments = $"-hide_banner -loglevel panic -i {inSource} -filter:a \"volume={Volume * baseVolume : 0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
 
                return Process.Start(startInfo);
           }
 
-          public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token) {
+          public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token, float baseVolume = 1.0f) {
                var Log = async (string str) => await Logger.LogAsync("[FileToOutputStream] " + str);
-               Process? process = await TrySpawnFFMPEG(filepath, null);
+               Process? process = await TrySpawnFFMPEG(filepath, null, float.Min(baseVolume, 0.0f));
                if (process == null) {
                     await Log("process has returned null");
                     return;
