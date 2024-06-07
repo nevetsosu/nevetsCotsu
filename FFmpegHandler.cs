@@ -1,12 +1,23 @@
 using System.Diagnostics;
-namespace FFMPEG {
+namespace AudioPipeline {
      public class FFMPEGHandler {
-          ILogger Logger;
+          public static float DefaultVolume = 0.5f;
+          public float Volume {
+               get;
+               private set;
+          }
+
+          private ILogger Logger;
           private static readonly string StandardInIndicator = "pipe:0";
           private static readonly string StandardOutIndicator = "pipe:1";
 
           public FFMPEGHandler(ILogger logger) {
                Logger = logger;
+               Volume = DefaultVolume;
+          }
+
+          public void SetVolume(uint volume) {
+               Volume = uint.Clamp(volume, 0, 100);
           }
 
           private async Task<Process?> TrySpawnFFMPEG(string? inFilePath, string? outFilePath) {
@@ -42,12 +53,12 @@ namespace FFMPEG {
                     outSource = outFilePath;
                }
 
-               startInfo.Arguments = $"-hide_banner -loglevel panic -i {inSource} -ac 2 -f s16le -ar 48000 {outSource}";
+               startInfo.Arguments = $"-hide_banner -loglevel panic -i {inSource} -filter:a \"volume={Volume:0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
 
                return Process.Start(startInfo);
           }
 
-          public async Task ReadFileToStream(string filepath, Stream outStream) {
+          public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token) {
                var Log = async (string str) => await Logger.LogAsync("[FileToOutputStream] " + str);
                Process? process = await TrySpawnFFMPEG(filepath, null);
                if (process == null) {
@@ -57,14 +68,14 @@ namespace FFMPEG {
 
                using (Stream output = process.StandardOutput.BaseStream) {
                     try {
-                         await output.CopyToAsync(outStream);
+                         await output.CopyToAsync(outStream, token);
+                         await outStream.FlushAsync();
                          await Log("Stream transfer finished");
                     } catch (OperationCanceledException) {
                          await Log("Stream transfer Canceled (Likely due to output stream disconnection). This is fine if handled correctly.");
                     } catch (Exception e) {
                          await Log($"Generic Stream Exception: {e}");
                     }
-                    await outStream.FlushAsync();
                }
                process.Dispose();
           }

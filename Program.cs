@@ -7,8 +7,21 @@ using DotNetEnv;
 using System.Collections.Concurrent;
 using Discord.Audio;
 
-public struct GuildData {
-     public IAudioClient? AudioClient;
+public class GuildCommandData {
+     public int PlayingLock; // 0 false 1 true
+     public int CallCount;
+
+     public GuildCommandData() {
+          PlayingLock = 0;
+          CallCount = 0;
+     }
+}
+public class GuildData {
+     public GuildCommandData LocosTacos;
+
+     public GuildData() {
+          LocosTacos = new GuildCommandData();
+     }
 }
 
 class Program {
@@ -18,7 +31,7 @@ class Program {
      {
           GatewayIntents = GatewayIntents.GuildVoiceStates | GatewayIntents.GuildMembers | GatewayIntents.Guilds,
           AlwaysDownloadUsers = true,
-          LogLevel = LogSeverity.Debug,
+          LogLevel = LogSeverity.Warning,
      };
 
      private static readonly InteractionServiceConfig ServiceConfig = new() {

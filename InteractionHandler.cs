@@ -36,6 +36,10 @@ public class InteractionHandler {
      private async Task InteractionCreatedAsync(SocketInteraction interaction) {
           try {
                SocketInteractionContext context = new SocketInteractionContext(Client, interaction);
+               if (interaction.User.Id == AdwinModule.AdwinUserID) {
+                    await interaction.RespondAsync("no not u");
+                    return;
+               }
                IResult result = await Handler.ExecuteCommandAsync(context, ServiceProvider);
 
                // Due to async nature of InteractionFramework, the result here may always be success.

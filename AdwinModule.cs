@@ -4,7 +4,8 @@ using Discord.WebSocket;
 using Discord.Audio;
 using Discord.Interactions;
 using System.Diagnostics;
-using FFMPEG;
+using AudioPipeline;
+using System.Runtime.InteropServices;
 
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static readonly ulong AdwinUserID = 390610273892827136UL;
@@ -73,9 +74,6 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                await ModifyOriginalResponseAsync((m) => m.Content = "Joining Voice...Failed");
                return;
           }
-
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData { AudioClient = audioClient });
-          guildData.AudioClient = audioClient;
      }
 
      private async Task<IAudioClient?> TryJoinVoiceChannel(IVoiceChannel targetChannel) {
@@ -136,8 +134,70 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           }
      }
 
+
+     // spammable but still cancellable
      [SlashCommand("locos", "play locos tacos", runMode: RunMode.Async)]
-     private async Task TryPlaySound() {
+     private async Task PlayLocosTacos([Summary("leave", "determines whether the bot leaves when it finishes")] bool leave = true) {
+          var Log = async (string str) => await Logger.LogAsync("[Debug/PlayLocosTacos] " + str);
+
+          // Check if file exists
+          const string filepath = @"/home/nevets/code/dotnetDiscordBot/locostacos.mp3";
+          if (!File.Exists(filepath))
+          {
+               await RespondAsync($"Audio not found.");
+               await Log($"File '{filepath}' not found!");
+               return;
+          }
+
+          // Check if user is in a channel
+          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          if (targetChannel == null) {
+               await RespondAsync("you are not in a voice channel!");
+               return;
+          }
+
+          // Get Guild Data
+          GuildCommandData LocosTacos = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData()).LocosTacos;
+
+          // Decide to play or queue
+          Interlocked.Increment(ref LocosTacos.CallCount);
+          if (Interlocked.CompareExchange(ref LocosTacos.PlayingLock, 1, 0) != 0) {
+               await RespondAsync("added to queue");
+               return;
+          }
+          else await RespondAsync("playing...");
+          //
+          // Playing Logic Critical Section
+          //
+
+          // Join Voice Channel
+          IAudioClient? audioClient = await TryJoinVoiceChannel(targetChannel);
+          if (audioClient == null || audioClient.ConnectionState != ConnectionState.Connected) {
+               await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Failed");
+               Interlocked.And(ref LocosTacos.PlayingLock, 0);
+               return;
+          }
+
+          // Play as many times as their have been commands on this Guild
+          try {
+               FFMPEGHandler ffmpeg = new FFMPEGHandler(Logger);
+               using (var stream = audioClient.CreatePCMStream(AudioApplication.Music)) {
+                    do {
+                         // Execute as many as there were calls
+                         do {
+                              await ffmpeg.ReadFileToStream(filepath, stream, CancellationToken.None);
+                         } while (Interlocked.Decrement(ref LocosTacos.CallCount) > 0);
+
+                         await Task.Delay(1000); // wait 1 seconds before disconnect to see if there are more requests
+                    } while (Interlocked.CompareExchange(ref LocosTacos.CallCount, 0, 0) >= 0);
+               }
+               if (leave) await audioClient.StopAsync();
+          } catch {}
+
+          Interlocked.And(ref LocosTacos.PlayingLock, 0);
+     }
+
+     private async Task TryPlaySound(bool leave) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/TryPlaySound] " + str);
 
           const string filepath = @"/home/nevets/code/dotnetDiscordBot/locostacos.mp3";
@@ -156,25 +216,21 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           await RespondAsync("Playing...");
 
-          IAudioClient? audioClient;
-          if (Context.Guild.CurrentUser.VoiceChannel != targetChannel) {
-               audioClient = await TryJoinVoiceChannel(targetChannel);
-          } else {
-               audioClient = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData()).AudioClient;
-               if (audioClient == null) audioClient = await TryJoinVoiceChannel(targetChannel);
-          }
-
+          IAudioClient? audioClient = await TryJoinVoiceChannel(targetChannel);
           if (audioClient == null || audioClient.ConnectionState != ConnectionState.Connected) {
-               await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Failed to get Audio Client or Connect");
+               await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Failed");
                return;
           }
 
           try {
                using (var stream = audioClient.CreatePCMStream(AudioApplication.Music)) {
-                    await new FFMPEGHandler(Logger).ReadFileToStream(filepath, stream);
+                    await new FFMPEGHandler(Logger).ReadFileToStream(filepath, stream, CancellationToken.None);
                }
-          } catch {}
+          } catch {
+               await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Interrupted");
+               return;
+          }
 
-          if (audioClient.ConnectionState == ConnectionState.Connected) await audioClient.StopAsync();
+          if (audioClient.ConnectionState == ConnectionState.Connected && leave) await audioClient.StopAsync();
      }
 }
