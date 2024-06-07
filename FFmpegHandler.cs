@@ -1,7 +1,7 @@
 using System.Diagnostics;
 namespace AudioPipeline {
      public class FFMPEGHandler {
-          public static float DefaultVolume = 0.5f;
+          public static float DefaultVolume = 1.0f;
           public float Volume {
                get;
                private set;
@@ -53,7 +53,7 @@ namespace AudioPipeline {
                     outSource = outFilePath;
                }
 
-               startInfo.Arguments = $"-hide_banner -loglevel panic -i {inSource} -filter:a \"volume={Volume * baseVolume : 0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
+               startInfo.Arguments = $"-hide_banner -loglevel panic -i {inSource} -filter:a \"volume={Volume * baseVolume: 0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
 
                return Process.Start(startInfo);
           }
