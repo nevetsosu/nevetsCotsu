@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using Discord.Audio;
 using Discord.Interactions;
 using System.Diagnostics;
+using FFMPEG;
 
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static readonly ulong AdwinUserID = 390610273892827136UL;
@@ -66,7 +67,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           }
 
           IAudioClient? audioClient = await TryJoinVoiceChannel();
-
+          
           if (audioClient == null) {
                await RespondAsync("failed join");
                return;
@@ -164,33 +165,12 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                return;
           }
 
-          // begin encoding with ffmpeg
-          Process? ffmpeg = CreateStream(filepath);
-          if (ffmpeg == null) {
-               await Log("Failed to load ffmpeg");
-               return;
-          }
-
-          // stream results of ffmpeg to audio client
-          using (var output = ffmpeg.StandardOutput.BaseStream)
           using (var stream = audioClient.CreatePCMStream(AudioApplication.Music)) {
-               try {
-                    await output.CopyToAsync(stream);
-                    await Log("audio playback finished");
-               } catch (OperationCanceledException) {
-                    await Log("Audio Write Canceled (Likely due to Disconnect)");
-               } catch (Exception e) {
-                    await Log($"Exception during audio playback: {e}");
-               }
-
-               await Log("disconnecting");
-               ffmpeg.Dispose();
-               await audioClient.StopAsync();
+               await new FFMPEGHandler(Logger).ReadFileToStream(filepath, stream);
           }
-
+          await Log("disconnecting");
+          await audioClient.StopAsync();
           await ModifyOriginalResponseAsync((m) => m.Content = "done!");
-
-          await Log("EXITING TRYPLAYSOUND");
      }
 
      private static Process? CreateStream(string path)
