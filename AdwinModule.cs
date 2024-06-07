@@ -97,7 +97,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           try {
                audioClient = await vChannel.ConnectAsync(selfDeaf : true, selfMute : false);
           } catch (Exception e){
-               await Log("Failed to connect to voice Channel " + e.ToString());
+               await Log("Failed to connect to voice Channel " + e.Message);
                return null;
           }
 
@@ -142,7 +142,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                await Context.Guild.CurrentUser.VoiceChannel.DisconnectAsync();
                return true;
           } catch (Exception e) {
-               await Log("failed to leave: " + e.ToString());
+               await Log("failed to leave: " + e.Message);
                return false;
           }
      }
@@ -171,16 +171,5 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           await Log("disconnecting");
           await audioClient.StopAsync();
           await ModifyOriginalResponseAsync((m) => m.Content = "done!");
-     }
-
-     private static Process? CreateStream(string path)
-     {
-          return Process.Start(new ProcessStartInfo
-          {
-               FileName = "ffmpeg",
-               Arguments = $"-hide_banner -loglevel panic -i \"{path}\" -ac 2 -f s16le -ar 48000 pipe:1",
-               UseShellExecute = false,
-               RedirectStandardOutput = true,
-          });
      }
 }
