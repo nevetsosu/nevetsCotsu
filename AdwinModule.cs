@@ -8,6 +8,7 @@ using AudioPipeline;
 using System.Runtime.InteropServices;
 
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
+     public static bool AllowAdwin = true;
      public static readonly ulong AdwinUserID = 390610273892827136UL;
      ILogger Logger;
      ConcurrentDictionary<ulong, GuildData> GuildDataDict;
@@ -15,6 +16,12 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public AdwinModule(ILogger logger, ConcurrentDictionary<ulong, GuildData> guildDataDict) {
           Logger = logger;
           GuildDataDict = guildDataDict;
+     }
+
+     [SlashCommand("toggleallowadwin", "toggles whether adwin is allowed to send commands or not")]
+     public async Task ToggleAllowAdwin() {
+          AllowAdwin = !AllowAdwin;
+          await RespondAsync(AllowAdwin ? "adwin is now allowed" : "adwin is no longer allowed");
      }
 
      [SlashCommand("adwin", "toggle mute on adwin")]

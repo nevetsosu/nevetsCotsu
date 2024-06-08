@@ -36,7 +36,7 @@ public class InteractionHandler {
      private async Task InteractionCreatedAsync(SocketInteraction interaction) {
           try {
                SocketInteractionContext context = new SocketInteractionContext(Client, interaction);
-               if (interaction.User.Id == AdwinModule.AdwinUserID) {
+               if (interaction.User.Id == AdwinModule.AdwinUserID && !AdwinModule.AllowAdwin) {
                     await interaction.RespondAsync("no not u");
                     return;
                }
