@@ -12,7 +12,6 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static readonly ulong AdwinUserID = 390610273892827136UL;
      ILogger Logger;
      ConcurrentDictionary<ulong, GuildData> GuildDataDict;
-     CancellationTokenSource PauseResume;
 
      public AdwinModule(ILogger logger, ConcurrentDictionary<ulong, GuildData> guildDataDict) {
           Logger = logger;
