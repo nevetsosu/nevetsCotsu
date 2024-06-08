@@ -243,4 +243,69 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           if (audioClient.ConnectionState == ConnectionState.Connected && leave) await audioClient.StopAsync();
      }
+
+     // spammable but still cancellable
+     [SlashCommand("Ricky", "Ricky", runMode: RunMode.Async)]
+     private async Task Ricky([Summary("leave", "determines whether the bot leaves when it finishes")] bool leave = true) {
+          var Log = async (string str) => await Logger.LogAsync("[Debug/PlayLocosTacos] " + str);
+
+          // Check if file exists
+          const string filepath = @"/home/nevets/code/dotnetDiscordBot/locostacos.mp3";
+          if (!File.Exists(filepath))
+          {
+               await RespondAsync($"Audio not found.");
+               await Log($"File '{filepath}' not found!");
+               return;
+          }
+
+          // Check if user is in a channel
+          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          if (targetChannel == null) {
+               await RespondAsync("you are not in a voice channel!");
+               return;
+          }
+
+          // Get Guild Data
+          GuildCommandData LocosTacos = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData()).LocosTacos;
+          await Log("Locos Count on this call " + LocosTacos.CallCount.ToString());
+
+          // Decide to play or queue
+          Interlocked.Increment(ref LocosTacos.CallCount);
+          if (Interlocked.CompareExchange(ref LocosTacos.PlayingLock, 1, 0) != 0) {
+               await RespondAsync("added to queue");
+               return;
+          }
+          else await RespondAsync("playing...");
+          //
+          // Playing Logic Critical Section
+          //
+
+          // Join Voice Channel
+          IAudioClient? audioClient = await TryJoinVoiceChannel(targetChannel);
+          if (audioClient == null || audioClient.ConnectionState != ConnectionState.Connected) {
+               await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Failed");
+               Interlocked.And(ref LocosTacos.PlayingLock, 0);
+               return;
+          }
+
+          // Play as many times as their have been commands on this Guild
+          try {
+               FFMPEGHandler ffmpeg = new FFMPEGHandler(Logger);
+               using (var stream = audioClient.CreatePCMStream(AudioApplication.Music)) {
+                    do {
+                         // Execute as many as there were calls
+                         do {
+                              await ffmpeg.YoutubeToStream("https://www.youtube.com/watch?v=dQw4w9WgXcQ", stream, CancellationToken.None, 0.2f);
+                         } while (Interlocked.Decrement(ref LocosTacos.CallCount) > 0);
+
+                         await Task.Delay(1000); // wait 1 seconds before disconnect to see if there are more requests
+                    } while (Interlocked.CompareExchange(ref LocosTacos.CallCount, 0, 0) > 0);
+               }
+               if (leave) await audioClient.StopAsync();
+          } catch (System.Net.WebSockets.WebSocketException) {
+               await Log("sudden disconnect handled");
+          }
+
+          Interlocked.And(ref LocosTacos.PlayingLock, 0);
+     }
 }
