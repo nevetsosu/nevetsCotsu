@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace AudioPipeline {
      public class FFMPEGHandler {
-          public static float DefaultVolume = 1.0f;
+          public static float DefaultVolume = 0.2f;
           public float Volume {
                get;
                private set;
@@ -22,7 +22,7 @@ namespace AudioPipeline {
                Volume = float.Clamp(volume, 0.0f, 1.0f);
           }
 
-          private async Task<Process?> TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f) {
+          public async Task<Process?> TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f) {
                var Log = async (string str) => await Logger.LogAsync("[Debug/TrySpawnFFMPEG] " + str);
 
                ProcessStartInfo startInfo = new ProcessStartInfo() {
@@ -60,7 +60,7 @@ namespace AudioPipeline {
                return Process.Start(startInfo);
           }
 
-          private async Task<Process?> TrySpawnYoutubeFFMPEG(string URL, string? outFilePath, float baseVolume = 1.0f) {
+          public async Task<Process?> TrySpawnYoutubeFFMPEG(string URL, string? outFilePath, float baseVolume = 1.0f) {
                var Log = async (string str) => await Logger.LogAsync("[Debug/TrySpawnYoutubeFFMPEG] " + str);
                ProcessStartInfo startInfo = new ProcessStartInfo() {
                     FileName = "/bin/bash",

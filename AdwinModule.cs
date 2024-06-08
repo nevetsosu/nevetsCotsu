@@ -176,7 +176,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                     do {
                          // Execute as many as there were calls
                          do {
-                              await ffmpeg.ReadFileToStream(filepath, stream, CancellationToken.None, 0.2f);
+                              await ffmpeg.ReadFileToStream(filepath, stream, CancellationToken.None, 1.0f);
                          } while (Interlocked.Decrement(ref LocosTacos.CallCount) > 0);
 
                          await Task.Delay(1000); // wait 1 seconds before disconnect to see if there are more requests
@@ -280,7 +280,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                     do {
                          // Execute as many as there were calls
                          do {
-                              await ffmpeg.YoutubeToStream("https://www.youtube.com/watch?v=dQw4w9WgXcQ", stream, CancellationToken.None, 0.2f);
+                              await ffmpeg.YoutubeToStream("https://www.youtube.com/watch?v=dQw4w9WgXcQ", stream, CancellationToken.None, 1.0f);
                          } while (Interlocked.Decrement(ref Ricky.CallCount) > 0);
 
                          await Task.Delay(1000); // wait 1 seconds before disconnect to see if there are more requests

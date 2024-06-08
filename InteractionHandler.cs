@@ -19,10 +19,12 @@ public class GuildData {
      public GuildCommandData LocosTacos;
      public GuildCommandData Ricky;
      public VoiceStateManager _VoiceStateManager;
+     public MP3Handler _MP3Handler;
      public GuildData(ILogger logger) {
           LocosTacos = new GuildCommandData();
           Ricky = new GuildCommandData();
           _VoiceStateManager = new VoiceStateManager(logger);
+          _MP3Handler = new MP3Handler(_VoiceStateManager, logger);
      }
 }
 
