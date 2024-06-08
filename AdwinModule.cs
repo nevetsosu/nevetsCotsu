@@ -47,7 +47,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
      private async Task<bool> TryToggleMute(IGuildUser user) {
           try {
-               await user.ModifyAsync(x => x.Mute = !x.Mute.Value);
+               await user.ModifyAsync(x => x.Mute = !user.IsMuted);
                return true;
           } catch {
                return false;
@@ -158,6 +158,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           // Get Guild Data
           GuildCommandData LocosTacos = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData()).LocosTacos;
+          await Log("Locos Count on this call " + LocosTacos.CallCount.ToString());
 
           // Decide to play or queue
           Interlocked.Increment(ref LocosTacos.CallCount);
@@ -189,10 +190,12 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                          } while (Interlocked.Decrement(ref LocosTacos.CallCount) > 0);
 
                          await Task.Delay(1000); // wait 1 seconds before disconnect to see if there are more requests
-                    } while (Interlocked.CompareExchange(ref LocosTacos.CallCount, 0, 0) >= 0);
+                    } while (Interlocked.CompareExchange(ref LocosTacos.CallCount, 0, 0) > 0);
                }
                if (leave) await audioClient.StopAsync();
-          } catch {}
+          } catch (System.Net.WebSockets.WebSocketException) {
+               await Log("sudden disconnect handled");
+          }
 
           Interlocked.And(ref LocosTacos.PlayingLock, 0);
      }
