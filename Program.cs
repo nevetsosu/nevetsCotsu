@@ -1,28 +1,9 @@
 ﻿using Discord;
 using Discord.WebSocket;
-using Discord.Webhook;
 using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
-using DotNetEnv;
 using System.Collections.Concurrent;
-using Discord.Audio;
-
-public class GuildCommandData {
-     public int PlayingLock; // 0 false 1 true
-     public int CallCount;
-
-     public GuildCommandData() {
-          PlayingLock = 0;
-          CallCount = 0;
-     }
-}
-public class GuildData {
-     public GuildCommandData LocosTacos;
-
-     public GuildData() {
-          LocosTacos = new GuildCommandData();
-     }
-}
+using DotNetEnv;
 
 class Program {
      private static IServiceProvider? ServiceProvider;

@@ -2,30 +2,54 @@ using Discord;
 using Discord.WebSocket;
 using Discord.Interactions;
 using System.Reflection;
-using Microsoft.VisualBasic;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
+
+public class GuildCommandData {
+     public int PlayingLock; // 0 false 1 true
+     public int CallCount;
+
+     public GuildCommandData() {
+          PlayingLock = 0;
+          CallCount = 0;
+     }
+}
+
+public class GuildData {
+     public GuildCommandData LocosTacos;
+     public GuildCommandData Ricky;
+     public VoiceStateManager _VoiceStateManager;
+     public GuildData(ILogger logger) {
+          LocosTacos = new GuildCommandData();
+          Ricky = new GuildCommandData();
+          _VoiceStateManager = new VoiceStateManager(logger);
+     }
+}
 
 public class InteractionHandler {
      private readonly DiscordSocketClient Client;
      private readonly InteractionService Handler;
      private readonly IServiceProvider ServiceProvider;
      private readonly ILogger Logger;
+     private readonly ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider, ILogger logger) {
+     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider, ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger logger) {
           Client = client;
           Handler = handler;
           ServiceProvider = serviceprovider;
           Logger = logger;
+          GuildDataDict = guildDataDict;
      }
 
      public async Task InitializeAsync() {
           Handler.Log += Logger.LogAsync;
           Client.Ready += ReadyAsync;
+          Client.UserVoiceStateUpdated += VoiceChannelStatusUpdatedAsync;
 
           await Handler.AddModulesAsync(Assembly.GetEntryAssembly(), ServiceProvider);
 
           Client.InteractionCreated += InteractionCreatedAsync;
-          Handler.InteractionExecuted += InteractionExecutedAsync;
+          // Handler.InteractionExecuted += InteractionExecutedAsync;
      }
 
      private async Task ReadyAsync() {
@@ -62,16 +86,21 @@ public class InteractionHandler {
           }
      }
 
-     private async Task InteractionExecutedAsync(ICommandInfo commandInfo, IInteractionContext context, IResult result)
-    {
-        if (!result.IsSuccess)
-            switch (result.Error)
-            {
-                case InteractionCommandError.UnmetPrecondition:
-                    await ServiceProvider.GetRequiredService<ILogger>().LogAsync("[InteractionCreatedAsync] UnmetPrecondition");
-                    break;
-                default:
-                    break;
-            }
-    }
+     private async Task VoiceChannelStatusUpdatedAsync(SocketUser user, SocketVoiceState oldState, SocketVoiceState newState) {
+
+          await Task.Delay(0);
+     }
+
+//      private async Task InteractionExecutedAsync(ICommandInfo commandInfo, IInteractionContext context, IResult result)
+//     {
+//         if (!result.IsSuccess)
+//             switch (result.Error)
+//             {
+//                 case InteractionCommandError.UnmetPrecondition:
+//                     await ServiceProvider.GetRequiredService<ILogger>().LogAsync("[InteractionCreatedAsync] UnmetPrecondition");
+//                     break;
+//                 default:
+//                     break;
+//             }
+//     }
 }

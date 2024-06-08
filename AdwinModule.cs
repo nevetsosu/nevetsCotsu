@@ -12,6 +12,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static readonly ulong AdwinUserID = 390610273892827136UL;
      ILogger Logger;
      ConcurrentDictionary<ulong, GuildData> GuildDataDict;
+     CancellationTokenSource PauseResume;
 
      public AdwinModule(ILogger logger, ConcurrentDictionary<ulong, GuildData> guildDataDict) {
           Logger = logger;
@@ -76,29 +77,13 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           await RespondAsync("Joining Voice...");
 
-          IAudioClient? audioClient = await TryJoinVoiceChannel(targetChannel);
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger));
+
+          IAudioClient? audioClient = await guildData._VoiceStateManager.ConnectAsync(targetChannel);
           if (audioClient == null) {
                await ModifyOriginalResponseAsync((m) => m.Content = "Joining Voice...Failed");
                return;
           }
-     }
-
-     private async Task<IAudioClient?> TryJoinVoiceChannel(IVoiceChannel targetChannel) {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/TryJoinVoiceChannel] " + str);
-
-          IAudioClient? audioClient;
-          try {
-               audioClient = await targetChannel.ConnectAsync(selfDeaf : true, selfMute : false);
-          } catch (Exception e){
-               await Log("Failed to connect to voice Channel: " + e.Message);
-               return null;
-          }
-
-          if (audioClient == null) {
-               await Log("Connnected but null audio client??");
-          }
-
-          return audioClient;
      }
 
 
@@ -164,7 +149,8 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           }
 
           // Get Guild Data
-          GuildCommandData LocosTacos = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData()).LocosTacos;
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger));
+          GuildCommandData LocosTacos = guildData.LocosTacos;
           await Log("Locos Count on this call " + LocosTacos.CallCount.ToString());
 
           // Decide to play or queue
@@ -179,7 +165,8 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           //
 
           // Join Voice Channel
-          IAudioClient? audioClient = await TryJoinVoiceChannel(targetChannel);
+
+          IAudioClient? audioClient = await guildData._VoiceStateManager.ConnectAsync(targetChannel);
           if (audioClient == null || audioClient.ConnectionState != ConnectionState.Connected) {
                await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Failed");
                Interlocked.And(ref LocosTacos.PlayingLock, 0);
@@ -226,7 +213,8 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           await RespondAsync("Playing...");
 
-          IAudioClient? audioClient = await TryJoinVoiceChannel(targetChannel);
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger));
+          IAudioClient? audioClient = await  guildData._VoiceStateManager.ConnectAsync(targetChannel);
           if (audioClient == null || audioClient.ConnectionState != ConnectionState.Connected) {
                await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Failed");
                return;
@@ -245,7 +233,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      }
 
      // spammable but still cancellable
-     [SlashCommand("Ricky", "Ricky", runMode: RunMode.Async)]
+     [SlashCommand("ricky", "ricky", runMode: RunMode.Async)]
      private async Task Ricky([Summary("leave", "determines whether the bot leaves when it finishes")] bool leave = true) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/PlayLocosTacos] " + str);
 
@@ -266,12 +254,13 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           }
 
           // Get Guild Data
-          GuildCommandData LocosTacos = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData()).LocosTacos;
-          await Log("Locos Count on this call " + LocosTacos.CallCount.ToString());
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, (id) => new GuildData(Logger));
+          GuildCommandData Ricky = guildData.Ricky;
+          await Log("Locos Count on this call " + Ricky.CallCount.ToString());
 
           // Decide to play or queue
-          Interlocked.Increment(ref LocosTacos.CallCount);
-          if (Interlocked.CompareExchange(ref LocosTacos.PlayingLock, 1, 0) != 0) {
+          Interlocked.Increment(ref Ricky.CallCount);
+          if (Interlocked.CompareExchange(ref Ricky.PlayingLock, 1, 0) != 0) {
                await RespondAsync("added to queue");
                return;
           }
@@ -281,10 +270,10 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           //
 
           // Join Voice Channel
-          IAudioClient? audioClient = await TryJoinVoiceChannel(targetChannel);
+          IAudioClient? audioClient = await guildData._VoiceStateManager.ConnectAsync(targetChannel);
           if (audioClient == null || audioClient.ConnectionState != ConnectionState.Connected) {
                await ModifyOriginalResponseAsync((m) => m.Content = "Playing...Failed");
-               Interlocked.And(ref LocosTacos.PlayingLock, 0);
+               Interlocked.And(ref Ricky.PlayingLock, 0);
                return;
           }
 
@@ -296,16 +285,16 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                          // Execute as many as there were calls
                          do {
                               await ffmpeg.YoutubeToStream("https://www.youtube.com/watch?v=dQw4w9WgXcQ", stream, CancellationToken.None, 0.2f);
-                         } while (Interlocked.Decrement(ref LocosTacos.CallCount) > 0);
+                         } while (Interlocked.Decrement(ref Ricky.CallCount) > 0);
 
                          await Task.Delay(1000); // wait 1 seconds before disconnect to see if there are more requests
-                    } while (Interlocked.CompareExchange(ref LocosTacos.CallCount, 0, 0) > 0);
+                    } while (Interlocked.CompareExchange(ref Ricky.CallCount, 0, 0) > 0);
                }
                if (leave) await audioClient.StopAsync();
           } catch (System.Net.WebSockets.WebSocketException) {
                await Log("sudden disconnect handled");
           }
 
-          Interlocked.And(ref LocosTacos.PlayingLock, 0);
+          Interlocked.And(ref Ricky.PlayingLock, 0);
      }
 }
