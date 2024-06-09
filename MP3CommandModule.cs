@@ -57,7 +57,8 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           }
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          guildData._MP3Handler.SkipSong();
 
-          await SkipSong();
+          await RespondAsync("skipped!");
      }
 }

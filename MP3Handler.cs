@@ -11,29 +11,37 @@ public class MP3Handler {
                URL = url;
           }
      }
+     private enum PlayerState {
+          Play, Pause, Resume, Exit, Skip, None
+     }
+     private struct PlayerStateData {
+          public Process? CurrentFFMPEGSource;
+          public PlayerState CurrentState;
+          public ReaderWriterLockSlim Lock;
 
-     private enum State {
-          Play, Pause, Resume, Exit, None
+          public PlayerStateData() {
+               CurrentState = PlayerState.None;
+               CurrentFFMPEGSource = null;
+               Lock = new();
+          }
      }
 
      private VoiceStateManager _VoiceStateManager;
-     private Process? CurrentFFMPEGProcess;
      private Queue<MP3Entry> Queue;
      private ReaderWriterLockSlim QueueLock;
      private CancellationTokenSource InteruptSource;
      private ILogger Logger;
-     private Process? CurrentFFMPEGSource;
-     private State CurrentState;
+     private PlayerStateData _PlayerStateData;
 
      public int QueueCount { get => Queue.Count; }
      public MP3Handler(VoiceStateManager voiceStateManager, ILogger logger) {
           _VoiceStateManager = voiceStateManager;
-          CurrentFFMPEGProcess = null;
           Queue = new();
           QueueLock = new();
-          Logger = logger;
-          CurrentState = State.None;
           InteruptSource = new();
+          _PlayerStateData = new();
+
+          Logger = logger;
      }
 
      public void ClearQueue() {
@@ -49,7 +57,7 @@ public class MP3Handler {
      }
 
      public void SkipSong() {
-          CurrentState = State.Play;
+          _PlayerStateData.CurrentState = PlayerState.Play;
           InterruptPlayer();
      }
 
@@ -59,7 +67,7 @@ public class MP3Handler {
      }
 
      public void TestInterrupt() { // a semaphore should be used for anything that causes an interrupt (interrupt causer will acquire and the player will release)
-          CurrentState = State.Resume;
+          _PlayerStateData.CurrentState = PlayerState.Resume;
           InterruptPlayer();
      }
 
@@ -73,18 +81,18 @@ public class MP3Handler {
                MP3Entry entry = Queue.Dequeue();
                QueueLock.ExitWriteLock();
 
-               CurrentFFMPEGSource = await new FFMPEGHandler(Logger).TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
-               if (CurrentFFMPEGSource == null) { QueueLock.EnterWriteLock(); continue; }
-               Stream input = CurrentFFMPEGSource.StandardOutput.BaseStream;
+               _PlayerStateData.CurrentFFMPEGSource = await new FFMPEGHandler(Logger).TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
+               if (_PlayerStateData.CurrentFFMPEGSource == null) { QueueLock.EnterWriteLock(); continue; }
+               Stream input = _PlayerStateData.CurrentFFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     while (true) {
                          try {
                               await input.CopyToAsync(output, InteruptSource.Token);
                          } catch (OperationCanceledException) {
-                              if (CurrentState == State.Resume) {
+                              if (_PlayerStateData.CurrentState == PlayerState.Resume) {
                                    continue;
-                              } else if (CurrentState == State.Play) {
-                                   await Log("going to next song");
+                              } else if (_PlayerStateData.CurrentState == PlayerState.Skip) {
+                                   await Log("skipping to next song");
                                    break;
                               } else break;
                          } catch (Exception e) {
