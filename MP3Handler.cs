@@ -2,18 +2,13 @@ using AudioPipeline;
 using Discord;
 using Discord.Audio;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 public class MP3Handler {
-     public struct MP3Entry {
-          public string URL;
-
-          public MP3Entry(string url) {
-               URL = url;
-          }
-     }
      private enum PlayerState {
-          Play, Pause, Resume, Exit, Skip, None
+          Play, Pause, Paused, Exit, Skip, None, Resume
      }
+
      private struct PlayerStateData {
           public Process? CurrentFFMPEGSource;
           public PlayerState CurrentState;
@@ -26,18 +21,24 @@ public class MP3Handler {
           }
      }
 
+     public struct MP3Entry {
+          public string URL;
+
+          public MP3Entry(string url) {
+               URL = url;
+          }
+     }
+
      private VoiceStateManager _VoiceStateManager;
-     private Queue<MP3Entry> Queue;
-     private ReaderWriterLockSlim QueueLock;
+     private ConcurrentQueue<MP3Entry> SongQueue;
      private CancellationTokenSource InteruptSource;
      private ILogger Logger;
      private PlayerStateData _PlayerStateData;
 
-     public int QueueCount { get => Queue.Count; }
+     public int QueueCount { get => SongQueue.Count; }
      public MP3Handler(VoiceStateManager voiceStateManager, ILogger logger) {
           _VoiceStateManager = voiceStateManager;
-          Queue = new();
-          QueueLock = new();
+          SongQueue = new();
           InteruptSource = new();
           _PlayerStateData = new();
 
@@ -45,19 +46,15 @@ public class MP3Handler {
      }
 
      public void ClearQueue() {
-          QueueLock.EnterWriteLock();
-          Queue.Clear();
-          QueueLock.ExitWriteLock();
+          SongQueue.Clear();
      }
 
      public void AddQueue(MP3Entry entry) {
-          QueueLock.EnterWriteLock();
-          Queue.Enqueue(entry);
-          QueueLock.ExitWriteLock();
+          SongQueue.Enqueue(entry);
      }
 
      public void SkipSong() {
-          _PlayerStateData.CurrentState = PlayerState.Play;
+          _PlayerStateData.CurrentState = PlayerState.Skip;
           InterruptPlayer();
      }
 
@@ -67,7 +64,7 @@ public class MP3Handler {
      }
 
      public void TestInterrupt() { // a semaphore should be used for anything that causes an interrupt (interrupt causer will acquire and the player will release)
-          _PlayerStateData.CurrentState = PlayerState.Resume;
+          _PlayerStateData.CurrentState = PlayerState.Play;
           InterruptPlayer();
      }
 
@@ -76,13 +73,13 @@ public class MP3Handler {
           IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel);
           if (AudioClient == null) return;
 
-          QueueLock.EnterWriteLock();
-          while (Queue.Count > 0) {
-               MP3Entry entry = Queue.Dequeue();
-               QueueLock.ExitWriteLock();
+          _PlayerStateData.CurrentState = PlayerState.Play;
+          while (SongQueue.Count > 0 && _PlayerStateData.CurrentState == PlayerState.Play) {
+               MP3Entry entry;
+               if (!SongQueue.TryDequeue(out entry)) break;
 
                _PlayerStateData.CurrentFFMPEGSource = await new FFMPEGHandler(Logger).TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
-               if (_PlayerStateData.CurrentFFMPEGSource == null) { QueueLock.EnterWriteLock(); continue; }
+               if (_PlayerStateData.CurrentFFMPEGSource == null) { continue; }
                Stream input = _PlayerStateData.CurrentFFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     while (true) {
@@ -92,16 +89,18 @@ public class MP3Handler {
                               if (_PlayerStateData.CurrentState == PlayerState.Resume) {
                                    continue;
                               } else if (_PlayerStateData.CurrentState == PlayerState.Skip) {
+                                   _PlayerStateData.CurrentState = PlayerState.Play;
                                    await Log("skipping to next song");
                                    break;
-                              } else break;
+                              } else { // basically a skip by default
+                                   _PlayerStateData.CurrentState = PlayerState.Exit;
+                                   break;
+                              }
                          } catch (Exception e) {
                               await Log("generic exception: " + e.Message);
                          }
                     }
                }; // point of potential Error
-               QueueLock.EnterWriteLock();
           }
-          QueueLock.ExitWriteLock();
      }
 }
