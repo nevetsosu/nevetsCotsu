@@ -29,8 +29,8 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           };
 
-          await RespondAsync("Starting the Player");
-          await guildData._MP3Handler.StartPlayer(targetChannel);
+          await RespondAsync("Starting the Player...");
+          if(!await guildData._MP3Handler.TryPlay(targetChannel)) await ModifyOriginalResponseAsync((m) => m.Content = "Starting the Player...Failed to start");
      }
 
      [SlashCommand("queueadd", "add a song to the queue")]
@@ -57,8 +57,8 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           }
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
-          guildData._MP3Handler.SkipSong();
+          await RespondAsync("skipping...");
 
-          await RespondAsync("skipped!");
+          if (!await guildData._MP3Handler.SkipSong()) await ModifyOriginalResponseAsync((m) => m.Content = "skipping...failed");
      }
 }

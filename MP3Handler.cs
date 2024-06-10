@@ -53,9 +53,16 @@ public class MP3Handler {
           SongQueue.Enqueue(entry);
      }
 
-     public void SkipSong() {
+     public async Task<bool> SkipSong() {
           _PlayerStateData.CurrentState = PlayerState.Skip;
+
           InterruptPlayer();
+          if (!await TryPopQueue()) return false;
+
+          if (_VoiceStateManager.ConnectedVoiceChannel == null) return false;
+          else await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
+
+          return true;
      }
 
      private void InterruptPlayer() {
@@ -68,37 +75,39 @@ public class MP3Handler {
           InterruptPlayer();
      }
 
+     public async Task<bool> TryPopQueue() {
+          MP3Entry entry;
+          if (!SongQueue.TryDequeue(out entry)) return false;
+
+          _PlayerStateData.CurrentFFMPEGSource = await new FFMPEGHandler(Logger).TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
+          if (_PlayerStateData.CurrentFFMPEGSource == null) return false;
+          return true;
+     }
+
+     public async Task<bool> TryPlay(IVoiceChannel targetChannnel) {
+          if (!await TryPopQueue()) return false;
+          await StartPlayer(targetChannnel).ConfigureAwait(true);
+          return true;
+     }
+
      public async Task StartPlayer(IVoiceChannel targetChannnel) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/StartPlayer] " + str);
           IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel);
           if (AudioClient == null) return;
 
-          _PlayerStateData.CurrentState = PlayerState.Play;
-          while (SongQueue.Count > 0 && _PlayerStateData.CurrentState == PlayerState.Play) {
-               MP3Entry entry;
-               if (!SongQueue.TryDequeue(out entry)) break;
-
-               _PlayerStateData.CurrentFFMPEGSource = await new FFMPEGHandler(Logger).TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
-               if (_PlayerStateData.CurrentFFMPEGSource == null) { continue; }
+          while (SongQueue.Count > 0) {
+               if (_PlayerStateData.CurrentFFMPEGSource == null) {
+                    await Log("_PlayerStateData.CurrentFFMPEGSource is null, going to the next song");
+                    continue;
+               }
                Stream input = _PlayerStateData.CurrentFFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
-                    while (true) {
-                         try {
-                              await input.CopyToAsync(output, InteruptSource.Token);
-                         } catch (OperationCanceledException) {
-                              if (_PlayerStateData.CurrentState == PlayerState.Resume) {
-                                   continue;
-                              } else if (_PlayerStateData.CurrentState == PlayerState.Skip) {
-                                   _PlayerStateData.CurrentState = PlayerState.Play;
-                                   await Log("skipping to next song");
-                                   break;
-                              } else { // basically a skip by default
-                                   _PlayerStateData.CurrentState = PlayerState.Exit;
-                                   break;
-                              }
-                         } catch (Exception e) {
-                              await Log("generic exception: " + e.Message);
-                         }
+                    try {
+                         await input.CopyToAsync(output, InteruptSource.Token);
+                    } catch (OperationCanceledException) {
+                         break;
+                    } catch (Exception e) {
+                         await Log("generic exception: " + e.Message);
                     }
                }; // point of potential Error
           }
