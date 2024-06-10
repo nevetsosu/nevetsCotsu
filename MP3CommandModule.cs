@@ -30,7 +30,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           };
 
           await RespondAsync("Starting the Player...");
-          if(!await guildData._MP3Handler.TryPlay(targetChannel)) await ModifyOriginalResponseAsync((m) => m.Content = "Starting the Player...Failed to start");
+          if(!await guildData._MP3Handler.TryResume(targetChannel)) await ModifyOriginalResponseAsync((m) => m.Content = "Starting the Player...Failed to start");
      }
 
      [SlashCommand("queueadd", "add a song to the queue")]
@@ -38,7 +38,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           // do some kind of url validity check
           // checking if the link is valid should be handled in a seperate class
 
-          await RespondAsync("added to queue");
+          await RespondAsync($"added {URL} to queue");
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
           // add to MP3Handler
           guildData._MP3Handler.AddQueue(new MP3Handler.MP3Entry(URL));
@@ -95,6 +95,6 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("pausing...");
-          guildData._MP3Handler.Pause();
+          await guildData._MP3Handler.Pause();
      }
 }
