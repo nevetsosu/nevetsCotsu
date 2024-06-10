@@ -84,8 +84,13 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
+          if (Context.Guild.CurrentUser.VoiceChannel == null) {
+               await RespondAsync("bot is not in the channel");
+          }
+
           if (targetChannel != Context.Guild.CurrentUser.VoiceChannel) {
                await RespondAsync("you are not in the same channel");
+               return;
           }
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id

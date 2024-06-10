@@ -12,12 +12,13 @@ public class MP3Handler {
      private struct PlayerStateData {
           public Process? CurrentFFMPEGSource;
           public PlayerState CurrentState;
-          public ReaderWriterLockSlim Lock;
-
+          public ReaderWriterLockSlim StateLock;
+          public CancellationTokenSource InterruptSource;
           public PlayerStateData() {
                CurrentState = PlayerState.None;
                CurrentFFMPEGSource = null;
-               Lock = new();
+               StateLock = new();
+               InterruptSource = new();
           }
      }
 
@@ -32,7 +33,6 @@ public class MP3Handler {
      private VoiceStateManager _VoiceStateManager;
      private ConcurrentQueue<MP3Entry> SongQueue;
      // add in a ReadySongs Queue that always tries to pop the Song Queue when below a capacity of (x)
-     private CancellationTokenSource InterruptSource;
      private ILogger Logger;
      private PlayerStateData _PlayerStateData;
 
@@ -40,9 +40,7 @@ public class MP3Handler {
      public MP3Handler(VoiceStateManager voiceStateManager, ILogger logger) {
           _VoiceStateManager = voiceStateManager;
           SongQueue = new();
-          InterruptSource = new();
           _PlayerStateData = new();
-
           Logger = logger;
      }
 
@@ -56,18 +54,36 @@ public class MP3Handler {
 
      // Pause will usually always succeed, but will return false if the player wasnt already playing something. other wise returns true
      public bool Pause() {
-          if (_PlayerStateData.CurrentState != PlayerState.Playing) return false;
-          _PlayerStateData.CurrentState = PlayerState.Paused;
           InterruptPlayer();
+          _PlayerStateData.StateLock.EnterUpgradeableReadLock();
+
+          if (_PlayerStateData.CurrentState != PlayerState.Playing) {
+               _PlayerStateData.StateLock.ExitUpgradeableReadLock();
+               return false;
+          }
+
+          _PlayerStateData.StateLock.EnterWriteLock();
+          _PlayerStateData.CurrentState = PlayerState.Paused;
+          _PlayerStateData.StateLock.ExitWriteLock();
+
+          _PlayerStateData.StateLock.ExitUpgradeableReadLock();
+
           return true;
      }
 
      public async Task<bool> TryResume(IVoiceChannel targetChannnel) {
-          if (_PlayerStateData.CurrentState == PlayerState.Playing) return false;
-
-          if (_PlayerStateData.CurrentState != PlayerState.Paused)
-               if (!await TryPopQueue()) return false;
-          await StartPlayer(targetChannnel).ConfigureAwait(true);
+          _PlayerStateData.StateLock.EnterReadLock();
+          if (_PlayerStateData.CurrentState == PlayerState.Playing) {
+               _PlayerStateData.StateLock.ExitReadLock();
+               return false;
+          }
+          if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
+               _PlayerStateData.StateLock.ExitReadLock();
+               return false;
+          }
+          InterruptPlayer();
+          _PlayerStateData.StateLock.ExitReadLock();
+          await StartPlayer(targetChannnel);
           return true;
      }
 
@@ -76,8 +92,9 @@ public class MP3Handler {
           if (!await TryPopQueue()) return true;
 
           if (_VoiceStateManager.ConnectedVoiceChannel == null) return false;
-          _PlayerStateData.CurrentState = PlayerState.Skipping;
-          await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel).ConfigureAwait(true);
+
+          ChangeState(PlayerState.Skipping);
+          await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
 
           if (_PlayerStateData.CurrentFFMPEGSource != null)
           _PlayerStateData.CurrentFFMPEGSource.Kill();
@@ -86,8 +103,8 @@ public class MP3Handler {
      }
 
      private void InterruptPlayer() {
-          InterruptSource.Cancel();
-          InterruptSource = new CancellationTokenSource();
+          _PlayerStateData.InterruptSource.Cancel();
+          _PlayerStateData.InterruptSource = new();
      }
 
      public async Task<bool> TryPopQueue() {
@@ -101,6 +118,7 @@ public class MP3Handler {
 
      public async Task<bool> TryPlay(IVoiceChannel targetChannnel) {
           if (!await TryPopQueue()) return false;
+          InterruptPlayer();
           await StartPlayer(targetChannnel);
           return true;
      }
@@ -110,26 +128,42 @@ public class MP3Handler {
           IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel);
           if (AudioClient == null) return;
 
+          _PlayerStateData.StateLock.EnterReadLock();
           do {
-               if (_PlayerStateData.CurrentFFMPEGSource == null) {
+               Process? FFMPEGSource = _PlayerStateData.CurrentFFMPEGSource;
+               _PlayerStateData.StateLock.ExitReadLock();
+
+               if (FFMPEGSource == null) {
                     await Log("_PlayerStateData.CurrentFFMPEGSource is null, stoppping");
                     return;
                }
-               _PlayerStateData.CurrentState = PlayerState.Playing;
-               Stream input = _PlayerStateData.CurrentFFMPEGSource.StandardOutput.BaseStream;
+               ChangeState(PlayerState.Playing);
+               Stream input = FFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
-                         await input.CopyToAsync(output, InterruptSource.Token);
+                         await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
                     } catch (OperationCanceledException) {
                          return;
                     } catch (Exception e) {
                          await Log("generic exception: " + e.Message);
                     }
-                    _PlayerStateData.CurrentFFMPEGSource.Kill();
+                    FFMPEGSource.Kill();
                }; // point of potential Error
-          } while (SongQueue.Count > 0);
+               _PlayerStateData.StateLock.EnterReadLock();
+          } while (await TryPopQueue());
+          _PlayerStateData.StateLock.ExitReadLock();
+     }
 
-          // if (_PlayerStateData.CurrentState != PlayerState.Paused && _PlayerStateData.CurrentState != PlayerState.Skipping)
-          //      _PlayerStateData.CurrentState = PlayerState.Idle;
+     private void ChangeState(PlayerState state) {
+          _PlayerStateData.StateLock.EnterWriteLock();
+          _PlayerStateData.CurrentState = state;
+          _PlayerStateData.StateLock.ExitWriteLock();
+     }
+
+     private PlayerState ReadState() {
+          _PlayerStateData.StateLock.EnterWriteLock();
+          PlayerState state = _PlayerStateData.CurrentState;
+          _PlayerStateData.StateLock.ExitWriteLock();
+          return state;
      }
 }
