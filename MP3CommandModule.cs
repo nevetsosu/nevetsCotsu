@@ -61,4 +61,35 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           if (!await guildData._MP3Handler.SkipSong()) await ModifyOriginalResponseAsync((m) => m.Content = "skipping...failed");
      }
+
+     [SlashCommand("resume", "resumes a previously loaded song")]
+     public async Task ResumeSong() {
+          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          if (targetChannel == null) {
+               await RespondAsync("you are not in a voice channel");
+               return;
+          }
+
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          await RespondAsync("resuming...");
+
+          if (!await guildData._MP3Handler.TryResume(targetChannel)) await ModifyOriginalResponseAsync((m) => m.Content = "resuming...failed");
+     }
+
+     [SlashCommand("pause", "pauses the current song")]
+     public async Task PauseSong() {
+          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          if (targetChannel == null) {
+               await RespondAsync("you are not in a voice channel");
+               return;
+          }
+
+          if (targetChannel != Context.Guild.CurrentUser.VoiceChannel) {
+               await RespondAsync("you are not in the same channel");
+          }
+
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          await RespondAsync("pausing...");
+          guildData._MP3Handler.Pause();
+     }
 }
