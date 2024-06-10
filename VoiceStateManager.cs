@@ -10,7 +10,7 @@ public class VoiceStateManager {
      public VoiceStateManager(ILogger logger) {
           AudioClient = null;
           ConnectedVoiceChannel = null;
-          Lock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+          Lock = new ReaderWriterLockSlim();
           Logger = logger;
      }
 

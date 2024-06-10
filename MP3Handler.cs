@@ -73,13 +73,11 @@ public class MP3Handler {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState == PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
-               return true;
+               return false;
           }
-          if (_PlayerStateData.CurrentState != PlayerState.Paused) {
-               if (!await TryPopQueue()) {
-                    _PlayerStateData.StateLock.Release();
-                    return false;
-               }
+          if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
+               _PlayerStateData.StateLock.Release();
+               return false;
           }
           InterruptPlayer();
           await StartPlayer(targetChannnel);
