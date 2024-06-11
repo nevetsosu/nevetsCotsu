@@ -30,24 +30,22 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                case MP3Handler.PlayerCommandStatus.Already:
                     await ModifyOriginalResponseAsync((m) => m.Content = "already playing");
                     break;
-               case MP3Handler.PlayerCommandStatus.Ok:  // unused
-                    break;
-               case MP3Handler.PlayerCommandStatus.Disconnected: // unused
+               default:
                     break;
           }
 
      }
 
-     [SlashCommand("queueadd", "add a song to the queue")]
-     public async Task QueueAdd(string URL) {
-          // do some kind of url validity check
-          // checking if the link is valid should be handled in a seperate class
+     // [SlashCommand("queueadd", "add a song to the queue")]
+     // public async Task QueueAdd(string URL) {
+     //      // do some kind of url validity check
+     //      // checking if the link is valid should be handled in a seperate class
 
-          await RespondAsync($"added {URL} to queue");
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
-          // add to MP3Handler
-          guildData._MP3Handler.AddQueue(new MP3Handler.MP3Entry(URL));
-     }
+     //      await RespondAsync($"added {URL} to queue");
+     //      GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+     //      // add to MP3Handler
+     //      guildData._MP3Handler.AddQueue(new MP3Handler.MP3Entry(URL));
+     // }
 
      [SlashCommand("skip", "skip the current song")]
      public async Task SkipSong() {
@@ -66,10 +64,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           switch (await guildData._MP3Handler.SkipSong()) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
-                    await ModifyOriginalResponseAsync((m) => m.Content += "no more songs in the queue");
+                    await ModifyOriginalResponseAsync((m) => m.Content += "there are now no more songs in the queue");
                     break;
                case MP3Handler.PlayerCommandStatus.Disconnected:
-                    await ModifyOriginalResponseAsync((m) => m.Content = "unexpected disconnect before next song");
+                    await ModifyOriginalResponseAsync((m) => m.Content += "unexpected disconnect before next song");
                     break;
                default:
                     break;
@@ -89,10 +87,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           switch (await guildData._MP3Handler.TryResume(targetChannel)) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
-                    await ModifyOriginalResponseAsync((m) => m.Content += "no songs to resume");
+                    await ModifyOriginalResponseAsync((m) => m.Content = "no songs to resume");
                     break;
                case MP3Handler.PlayerCommandStatus.Already:
-                    await ModifyOriginalResponseAsync((m) => m.Content += "already playing");
+                    await ModifyOriginalResponseAsync((m) => m.Content = "already playing");
                     break;
                default:
                     break;
@@ -124,7 +122,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                     await ModifyOriginalResponseAsync((m) => m.Content = "already paused");
                     break;
                case MP3Handler.PlayerCommandStatus.EmptyQueue: // substitute for: not currently playing
-                    await ModifyOriginalResponseAsync((m) => m.Content += "not currently playing");
+                    await ModifyOriginalResponseAsync((m) => m.Content = "not currently playing");
                     break;
                default:
                     break;
