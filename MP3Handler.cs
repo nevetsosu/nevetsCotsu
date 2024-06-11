@@ -6,8 +6,8 @@ using System.Collections.Concurrent;
 
 public class MP3Handler {
 
-     public enum PlayerErrors {
-          EmptyQueue, AlreadyPaused, AlreadyPlaying
+     public enum PlayerCommandStatus {
+          EmptyQueue, Already, Good
      }
      private enum PlayerState {
           Paused, Playing, Idle
@@ -15,6 +15,7 @@ public class MP3Handler {
 
      private struct PlayerStateData {
           public Process? CurrentFFMPEGSource;
+          public MP3Entry CurrentEntry;
           public PlayerState CurrentState;
           public SemaphoreSlim StateLock;
           public CancellationTokenSource InterruptSource;
@@ -61,19 +62,19 @@ public class MP3Handler {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
-               return false;
+               return false; // return ALREADY
           }
           InterruptPlayer();
           _PlayerStateData.CurrentState = PlayerState.Paused;
           _PlayerStateData.StateLock.Release();
-          return true;
+          return true; // return OK
      }
 
      public async Task<bool> TryResume(IVoiceChannel targetChannnel, string? song = null) {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState == PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
-               return false;
+               return false; // return ALREADY
           }
 
           if (!string.IsNullOrEmpty(song)) {
@@ -82,25 +83,23 @@ public class MP3Handler {
 
           if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
-               return false;
+               return false; // return EMPTYQUEUE
           }
           InterruptPlayer();
           await StartPlayer(targetChannnel);
-          return true;
+          return true; // return GOOD
      }
 
      public async Task<bool> SkipSong() {
           await _PlayerStateData.StateLock.WaitAsync();
 
           InterruptPlayer();
+          if (_PlayerStateData.CurrentFFMPEGSource != null) _PlayerStateData.CurrentFFMPEGSource.Kill();
+
           if (_VoiceStateManager.ConnectedVoiceChannel == null) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
                return false;
-          }
-
-          if (_PlayerStateData.CurrentState == PlayerState.Paused && _PlayerStateData.CurrentFFMPEGSource != null) {
-               _PlayerStateData.CurrentFFMPEGSource.Kill();
           }
 
           if (!await TryPopQueue()) {
@@ -109,7 +108,6 @@ public class MP3Handler {
                return true;
           }
 
-          if (_PlayerStateData.CurrentFFMPEGSource != null) _PlayerStateData.CurrentFFMPEGSource.Kill();
           await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
 
           return true;
