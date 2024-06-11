@@ -27,12 +27,14 @@ public class MP3Handler {
           public PlayerState CurrentState;
           public SemaphoreSlim StateLock;
           public CancellationTokenSource InterruptSource;
+          public long totalBytesWritten;
           public PlayerStateData() {
                CurrentState = PlayerState.Idle;
                CurrentFFMPEGSource = null;
                StateLock = new(1, 1);
                InterruptSource = new();
                CurrentPlayerTask = Task.CompletedTask;
+               totalBytesWritten = 0;
           }
      }
 
@@ -177,10 +179,17 @@ public class MP3Handler {
                Stream input = FFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
-                         await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
+                         CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
+                         // await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
                          await output.FlushAsync();
                          FFMPEGSource.Kill();
                     } catch (OperationCanceledException) {
+                         try {
+                              await Log("output stream index: " + output.Position);
+                         } catch (Exception e) {
+                              await Log("double catch: " + e.Message);
+                         }
+
                          _PlayerStateData.CurrentState = PlayerState.Idle;
                          return;
                     } catch (Exception e) {
@@ -221,5 +230,30 @@ public class MP3Handler {
           _PlayerStateData.StateLock.Release();
 
           return new SongData(entry.URL);
+     }
+
+     public async Task<long> NowPlayingProgress() {
+          var Log = async (string str) => await Logger.LogAsync("[Debug/NowPlayingProgress] " + str);
+          long BufferIndex = -1;
+          await _PlayerStateData.StateLock.WaitAsync();
+
+          if (_PlayerStateData.CurrentFFMPEGSource == null) {
+               await Log("_PlayerStateData.CurrentFFMPEGSource is null");
+               return BufferIndex;
+          }
+          BufferIndex = _PlayerStateData.totalBytesWritten;
+          _PlayerStateData.StateLock.Release();
+
+          await Log("Index: " + BufferIndex);
+
+          return BufferIndex / (48000 * 2 * 2);
+     }
+
+     public void CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token) {
+          int buffer;
+          while ((buffer = inputStream.ReadByte()) != -1 && !token.IsCancellationRequested) {
+               outputStream.WriteByte((byte) buffer);
+               _PlayerStateData.totalBytesWritten += 1;
+          }
      }
 }

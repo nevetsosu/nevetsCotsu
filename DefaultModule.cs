@@ -50,4 +50,9 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
                return false;
           }
      }
+
+     [SlashCommand("eatmyassplz", "thirsty rojas")]
+     public async Task EatMyAssPlz() {
+          await RespondAsync("no");
+     }
 }

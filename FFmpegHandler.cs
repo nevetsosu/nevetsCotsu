@@ -55,7 +55,7 @@ namespace AudioPipeline {
                     outSource = outFilePath;
                }
 
-               startInfo.Arguments = $"-hide_banner -loglevel panic -i {inSource} -filter:a \"loudnorm, volume={Volume * baseVolume:0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
+               startInfo.Arguments = $"-hide_banner -loglevel level+panic -progress \'output.log\' -i {inSource} -filter:a \"loudnorm, volume={Volume * baseVolume:0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
                await Log("Spawning ffmpeg with Arguments: " + startInfo.Arguments);
                return Process.Start(startInfo);
           }
@@ -79,7 +79,7 @@ namespace AudioPipeline {
                } else {
                     outSource = outFilePath;
                }
-               startInfo.Arguments = $"-c \"yt-dlp -o - -f bestaudio \'{URL}\' | ffmpeg -hide_banner -loglevel panic -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
+               startInfo.Arguments = $"-c \"yt-dlp --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err | ffmpeg -hide_banner -loglevel level+panic -progress \'output.log\' -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
                return Process.Start(startInfo);
           }
 
