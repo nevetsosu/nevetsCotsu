@@ -60,9 +60,15 @@ public class MP3Handler {
      // Pause will usually always succeed, but will return false if the player wasnt already playing something. other wise returns true
      public async Task<PlayerCommandStatus> Pause() {
           await _PlayerStateData.StateLock.WaitAsync();
-          if (_PlayerStateData.CurrentState != PlayerState.Playing) {
+
+          if (_PlayerStateData.CurrentState == PlayerState.Paused) {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.Already; // return ALREADY
+          }
+
+          if (_PlayerStateData.CurrentState != PlayerState.Playing) {
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.EmptyQueue;
           }
           InterruptPlayer();
           _PlayerStateData.CurrentState = PlayerState.Paused;
@@ -107,7 +113,7 @@ public class MP3Handler {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.Disconnected; // Disconnected 
           }
-          
+
           await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
 
           return PlayerCommandStatus.Ok; // OK

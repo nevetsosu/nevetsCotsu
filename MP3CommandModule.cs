@@ -71,9 +71,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                case MP3Handler.PlayerCommandStatus.Disconnected:
                     await ModifyOriginalResponseAsync((m) => m.Content = "unexpected disconnect before next song");
                     break;
-               case MP3Handler.PlayerCommandStatus.Already: // unsed
-                    break;
-               case MP3Handler.PlayerCommandStatus.Ok:  // unused
+               default:
                     break;
           }
      }
@@ -96,9 +94,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                case MP3Handler.PlayerCommandStatus.Already:
                     await ModifyOriginalResponseAsync((m) => m.Content += "already playing");
                     break;
-               case MP3Handler.PlayerCommandStatus.Disconnected: // unused
-                    break;
-               case MP3Handler.PlayerCommandStatus.Ok:  // unused
+               default:
                     break;
           }
      }
@@ -122,6 +118,16 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("pausing...");
-          await guildData._MP3Handler.Pause();
+
+          switch (await guildData._MP3Handler.Pause()) {
+               case MP3Handler.PlayerCommandStatus.Already:
+                    await ModifyOriginalResponseAsync((m) => m.Content = "already paused");
+                    break;
+               case MP3Handler.PlayerCommandStatus.EmptyQueue: // substitute for: not currently playing
+                    await ModifyOriginalResponseAsync((m) => m.Content += "not currently playing");
+                    break;
+               default:
+                    break;
+          }
      }
 }
