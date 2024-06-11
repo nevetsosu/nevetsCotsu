@@ -16,6 +16,7 @@ public class MP3Handler {
 
      private struct PlayerStateData {
           public Process? CurrentFFMPEGSource;
+          public Task CurrentPlayerTask;
           public MP3Entry CurrentEntry;
           public PlayerState CurrentState;
           public SemaphoreSlim StateLock;
@@ -25,6 +26,7 @@ public class MP3Handler {
                CurrentFFMPEGSource = null;
                StateLock = new(1, 1);
                InterruptSource = new();
+               CurrentPlayerTask = Task.CompletedTask;
           }
      }
 
@@ -72,6 +74,8 @@ public class MP3Handler {
                return PlayerCommandStatus.EmptyQueue;
           }
           InterruptPlayer();
+          await _PlayerStateData.CurrentPlayerTask;
+
           _PlayerStateData.CurrentState = PlayerState.Paused;
           _PlayerStateData.StateLock.Release();
           return PlayerCommandStatus.Ok; // return OK
@@ -91,7 +95,10 @@ public class MP3Handler {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.EmptyQueue; // return EMPTYQUEUE
           }
+
           InterruptPlayer();
+          await _PlayerStateData.CurrentPlayerTask;
+
           await StartPlayer(targetChannnel);
           return PlayerCommandStatus.Ok; // return GOOD
      }
@@ -100,6 +107,8 @@ public class MP3Handler {
           await _PlayerStateData.StateLock.WaitAsync();
 
           InterruptPlayer();
+          await _PlayerStateData.CurrentPlayerTask;
+
           if (_PlayerStateData.CurrentFFMPEGSource != null) _PlayerStateData.CurrentFFMPEGSource.Kill();
 
           if (!await TryPopQueue()) {
@@ -166,6 +175,7 @@ public class MP3Handler {
                          await output.FlushAsync();
                          FFMPEGSource.Kill();
                     } catch (OperationCanceledException) {
+                         _PlayerStateData.CurrentState = PlayerState.Idle;
                          return;
                     } catch (Exception e) {
                          await Log("generic exception: " + e.Message);
