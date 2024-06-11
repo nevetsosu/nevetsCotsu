@@ -3,9 +3,15 @@ using Discord;
 using Discord.Audio;
 using System.Diagnostics;
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 
 public class MP3Handler {
+
+     public class SongData {
+          public string URL;
+          public SongData(string url) {
+               URL = url;
+          }
+     }
 
      public enum PlayerCommandStatus {
           EmptyQueue, Already, Ok, Disconnected
@@ -198,10 +204,22 @@ public class MP3Handler {
           // await _PlayerStateData.StateLock.WaitAsync();
           // switch (_PlayerStateData.CurrentState) {
           //      case PlayerState.Paused:
-                    
+
           //           break;
           // }
           // if ( == PlayerState.Paused)
           // _PlayerStateData.StateLock.Release();
+     }
+
+     public async Task<SongData?> NowPlaying() {
+          await _PlayerStateData.StateLock.WaitAsync();
+          if (_PlayerStateData.CurrentState == PlayerState.Paused && _PlayerStateData.CurrentState == PlayerState.Playing) {
+               _PlayerStateData.StateLock.Release();
+               return null;
+          }
+          MP3Entry entry = _PlayerStateData.CurrentEntry;
+          _PlayerStateData.StateLock.Release();
+
+          return new SongData(entry.URL);
      }
 }
