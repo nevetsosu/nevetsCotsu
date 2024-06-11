@@ -27,6 +27,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
+               case MP3Handler.PlayerCommandStatus.Already:
+                    if (!string.IsNullOrEmpty(song)) await ModifyOriginalResponseAsync((m) => m.Content = "song added to queue");
+                    break;
                default:
                     break;
           }
@@ -124,5 +127,21 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                default:
                     break;
           }
+     }
+
+     [SlashCommand("queue", "lists the current song queue")]
+     public async Task Queue() {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger));
+          List<MP3Handler.MP3Entry> entries = guildData._MP3Handler.GetQueueAsList();
+          EmbedFieldBuilder[] Fields = new EmbedFieldBuilder[entries.Count];
+
+          for (int i = 0; i < entries.Count; i++) {
+               Fields[i] = new EmbedFieldBuilder().WithName("Song: ").WithValue(entries[i].URL);
+          }
+          Embed embed = new EmbedBuilder()
+                         .WithTitle("Queue")
+                         .WithFields(Fields)
+                         .Build();
+          await RespondAsync(embed: embed);
      }
 }

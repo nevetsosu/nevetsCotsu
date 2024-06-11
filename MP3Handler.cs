@@ -82,6 +82,10 @@ public class MP3Handler {
           if (!string.IsNullOrEmpty(song)) {
                AddQueue(new MP3Entry(song));
           }
+          if (_PlayerStateData.CurrentState == PlayerState.Playing) {
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.Already; // return Already
+          }
 
           if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
@@ -126,6 +130,7 @@ public class MP3Handler {
 
           _PlayerStateData.CurrentFFMPEGSource = await new FFMPEGHandler(Logger).TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
           if (_PlayerStateData.CurrentFFMPEGSource == null) return false;
+          _PlayerStateData.CurrentEntry = entry;
           return true;
      }
 
@@ -174,7 +179,7 @@ public class MP3Handler {
           _PlayerStateData.StateLock.Release();
      }
 
-     public List<MP3Entry> GetCopyQueue() {
+     public List<MP3Entry> GetQueueAsList() {
           return SongQueue.ToList();
      }
 
