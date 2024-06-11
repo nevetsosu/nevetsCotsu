@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 
 public class MP3Handler {
      private enum PlayerState {
-          Play, Pause, Paused, Skip, None, Resume, Playing, Idle, Skipping
+          Paused, Playing, Idle
      }
 
      private struct PlayerStateData {
@@ -15,7 +15,7 @@ public class MP3Handler {
           public SemaphoreSlim StateLock;
           public CancellationTokenSource InterruptSource;
           public PlayerStateData() {
-               CurrentState = PlayerState.None;
+               CurrentState = PlayerState.Idle;
                CurrentFFMPEGSource = null;
                StateLock = new(1, 1);
                InterruptSource = new();
@@ -61,9 +61,7 @@ public class MP3Handler {
           }
           InterruptPlayer();
           _PlayerStateData.CurrentState = PlayerState.Paused;
-
           _PlayerStateData.StateLock.Release();
-
           return true;
      }
 
@@ -87,11 +85,13 @@ public class MP3Handler {
 
           InterruptPlayer();
           if (_VoiceStateManager.ConnectedVoiceChannel == null) {
+               _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
                return false;
           }
 
           if (!await TryPopQueue()) {
+               _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
                return true;
           }
@@ -116,7 +116,7 @@ public class MP3Handler {
           return true;
      }
 
-     public async Task<bool> TryPlay(IVoiceChannel targetChannnel) {  
+     public async Task<bool> TryPlay(IVoiceChannel targetChannnel) {
           await _PlayerStateData.StateLock.WaitAsync();
           if (!await TryPopQueue()) return false;
 
@@ -154,7 +154,9 @@ public class MP3Handler {
                }; // point of potential Error
                await _PlayerStateData.StateLock.WaitAsync();
           } while (await TryPopQueue());
-          _PlayerStateData.CurrentState = PlayerState.None;
+
+          // natural player exit (the queue has become empty)
+          _PlayerStateData.CurrentState = PlayerState.Idle;
           _PlayerStateData.StateLock.Release();
      }
 }
