@@ -1,3 +1,6 @@
 Next steps:
      Add the ability to Loop
      Add the ability to accept search queries
+
+For Later:
+Add a preload system to avoid the initial load time on getting a youtube video
