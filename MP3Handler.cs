@@ -65,12 +65,17 @@ public class MP3Handler {
           return true;
      }
 
-     public async Task<bool> TryResume(IVoiceChannel targetChannnel) {
+     public async Task<bool> TryResume(IVoiceChannel targetChannnel, string? song = null) {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState == PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
                return false;
           }
+
+          if (!string.IsNullOrEmpty(song)) {
+               AddQueue(new MP3Entry(song));
+          }
+
           if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
                return false;
