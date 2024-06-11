@@ -54,14 +54,12 @@ public class MP3Handler {
 
      // Pause will usually always succeed, but will return false if the player wasnt already playing something. other wise returns true
      public async Task<bool> Pause() {
-          InterruptPlayer();
           await _PlayerStateData.StateLock.WaitAsync();
-
           if (_PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
                return false;
           }
-
+          InterruptPlayer();
           _PlayerStateData.CurrentState = PlayerState.Paused;
 
           _PlayerStateData.StateLock.Release();
@@ -99,7 +97,6 @@ public class MP3Handler {
           }
 
           if (_PlayerStateData.CurrentFFMPEGSource != null) _PlayerStateData.CurrentFFMPEGSource.Kill();
-
           await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
 
           return true;
@@ -119,10 +116,10 @@ public class MP3Handler {
           return true;
      }
 
-     public async Task<bool> TryPlay(IVoiceChannel targetChannnel) {
+     public async Task<bool> TryPlay(IVoiceChannel targetChannnel) {  
+          await _PlayerStateData.StateLock.WaitAsync();
           if (!await TryPopQueue()) return false;
 
-          await _PlayerStateData.StateLock.WaitAsync();
           InterruptPlayer();
           await StartPlayer(targetChannnel);
           return true;
@@ -159,18 +156,5 @@ public class MP3Handler {
           } while (await TryPopQueue());
           _PlayerStateData.CurrentState = PlayerState.None;
           _PlayerStateData.StateLock.Release();
-     }
-
-     private void ChangeState(PlayerState state) {
-          _PlayerStateData.StateLock.WaitAsync();
-          _PlayerStateData.CurrentState = state;
-          _PlayerStateData.StateLock.Release();
-     }
-
-     private PlayerState ReadState() {
-          _PlayerStateData.StateLock.Release();
-          PlayerState state = _PlayerStateData.CurrentState;
-          _PlayerStateData.StateLock.Release();
-          return state;
      }
 }

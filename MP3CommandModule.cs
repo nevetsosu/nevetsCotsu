@@ -13,7 +13,11 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      }
 
      [SlashCommand("play", "start the mp3 player")]
-     public async Task StartPlayer() {
+     public async Task StartPlayer(string song) {
+          // check if it is a URL, other wise look it up on Youtube
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          guildData._MP3Handler.AddQueue(new MP3Handler.MP3Entry(song));
+
           await ResumeSong();
      }
 
