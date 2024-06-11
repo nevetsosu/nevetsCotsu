@@ -76,13 +76,8 @@ public class MP3Handler {
           return PlayerCommandStatus.Ok; // return OK
      }
 
-     public async Task<PlayerCommandStatus> TryResume(IVoiceChannel targetChannnel, string? song = null) {
+     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel, string? song = null) {
           await _PlayerStateData.StateLock.WaitAsync();
-          if (_PlayerStateData.CurrentState == PlayerState.Playing) {
-               _PlayerStateData.StateLock.Release();
-               return PlayerCommandStatus.Already; // return ALREADY
-          }
-
           if (!string.IsNullOrEmpty(song)) {
                AddQueue(new MP3Entry(song));
           }

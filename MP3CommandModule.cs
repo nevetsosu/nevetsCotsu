@@ -23,12 +23,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           // check if it is a URL, other wise look it up on Youtube
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
 
-          switch (await guildData._MP3Handler.TryResume(targetChannel, song)) {
+          switch (await guildData._MP3Handler.TryPlay(targetChannel, song)) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
-                    break;
-               case MP3Handler.PlayerCommandStatus.Already:
-                    await ModifyOriginalResponseAsync((m) => m.Content = "already playing");
                     break;
                default:
                     break;
@@ -85,7 +82,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("resuming...");
 
-          switch (await guildData._MP3Handler.TryResume(targetChannel)) {
+          switch (await guildData._MP3Handler.TryPlay(targetChannel)) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "no songs to resume");
                     break;
