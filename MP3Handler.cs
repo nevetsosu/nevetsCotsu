@@ -7,7 +7,7 @@ using System.Collections.Concurrent;
 public class MP3Handler {
 
      public enum PlayerCommandStatus {
-          EmptyQueue, Already, Good
+          EmptyQueue, Already, Ok, Disconnected
      }
      private enum PlayerState {
           Paused, Playing, Idle
@@ -58,23 +58,23 @@ public class MP3Handler {
      }
 
      // Pause will usually always succeed, but will return false if the player wasnt already playing something. other wise returns true
-     public async Task<bool> Pause() {
+     public async Task<PlayerCommandStatus> Pause() {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
-               return false; // return ALREADY
+               return PlayerCommandStatus.Already; // return ALREADY
           }
           InterruptPlayer();
           _PlayerStateData.CurrentState = PlayerState.Paused;
           _PlayerStateData.StateLock.Release();
-          return true; // return OK
+          return PlayerCommandStatus.Ok; // return OK
      }
 
-     public async Task<bool> TryResume(IVoiceChannel targetChannnel, string? song = null) {
+     public async Task<PlayerCommandStatus> TryResume(IVoiceChannel targetChannnel, string? song = null) {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState == PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
-               return false; // return ALREADY
+               return PlayerCommandStatus.Already; // return ALREADY
           }
 
           if (!string.IsNullOrEmpty(song)) {
@@ -83,34 +83,34 @@ public class MP3Handler {
 
           if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
-               return false; // return EMPTYQUEUE
+               return PlayerCommandStatus.EmptyQueue; // return EMPTYQUEUE
           }
           InterruptPlayer();
           await StartPlayer(targetChannnel);
-          return true; // return GOOD
+          return PlayerCommandStatus.Ok; // return GOOD
      }
 
-     public async Task<bool> SkipSong() {
+     public async Task<PlayerCommandStatus> SkipSong() {
           await _PlayerStateData.StateLock.WaitAsync();
 
           InterruptPlayer();
           if (_PlayerStateData.CurrentFFMPEGSource != null) _PlayerStateData.CurrentFFMPEGSource.Kill();
 
-          if (_VoiceStateManager.ConnectedVoiceChannel == null) {
-               _PlayerStateData.CurrentState = PlayerState.Idle;
-               _PlayerStateData.StateLock.Release();
-               return false;
-          }
-
           if (!await TryPopQueue()) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
-               return true;
+               return PlayerCommandStatus.EmptyQueue; // Empty Queue
           }
 
+          if (_VoiceStateManager.ConnectedVoiceChannel == null) {
+               _PlayerStateData.CurrentState = PlayerState.Idle;
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.Disconnected; // Disconnected 
+          }
+          
           await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
 
-          return true;
+          return PlayerCommandStatus.Ok; // OK
      }
 
      private void InterruptPlayer() {
@@ -118,7 +118,7 @@ public class MP3Handler {
           _PlayerStateData.InterruptSource = new();
      }
 
-     public async Task<bool> TryPopQueue() {
+     private async Task<bool> TryPopQueue() {
           MP3Entry entry;
           if (!SongQueue.TryDequeue(out entry)) return false;
 
@@ -127,17 +127,17 @@ public class MP3Handler {
           return true;
      }
 
-     public async Task<bool> TryPlay(IVoiceChannel targetChannnel) {
+     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel) {
           await _PlayerStateData.StateLock.WaitAsync();
-          if (!await TryPopQueue()) return false;
+          if (!await TryPopQueue()) return PlayerCommandStatus.EmptyQueue; // Empty Queue
 
           InterruptPlayer();
           await StartPlayer(targetChannnel);
-          return true;
+          return PlayerCommandStatus.Ok;
      }
 
      // It is ASSUMED that the StateLock is Already acquired BEFORE a call to the StartPlayer function
-     public async Task StartPlayer(IVoiceChannel targetChannnel) {
+     private async Task StartPlayer(IVoiceChannel targetChannnel) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/StartPlayer] " + str);
           IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel, OnDisconnectAsync);
           if (AudioClient == null) return;
