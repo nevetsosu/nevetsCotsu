@@ -5,6 +5,10 @@ using System.Diagnostics;
 using System.Collections.Concurrent;
 
 public class MP3Handler {
+
+     public enum PlayerErrors {
+          EmptyQueue, AlreadyPaused, AlreadyPlaying
+     }
      private enum PlayerState {
           Paused, Playing, Idle
      }
@@ -95,6 +99,10 @@ public class MP3Handler {
                return false;
           }
 
+          if (_PlayerStateData.CurrentState == PlayerState.Paused && _PlayerStateData.CurrentFFMPEGSource != null) {
+               _PlayerStateData.CurrentFFMPEGSource.Kill();
+          }
+
           if (!await TryPopQueue()) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
@@ -133,7 +141,7 @@ public class MP3Handler {
      // It is ASSUMED that the StateLock is Already acquired BEFORE a call to the StartPlayer function
      public async Task StartPlayer(IVoiceChannel targetChannnel) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/StartPlayer] " + str);
-          IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel);
+          IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel, OnDisconnectAsync);
           if (AudioClient == null) return;
 
           do {
@@ -145,6 +153,7 @@ public class MP3Handler {
                }
                _PlayerStateData.CurrentState = PlayerState.Playing;
                _PlayerStateData.StateLock.Release();
+
                Stream input = FFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
@@ -163,5 +172,17 @@ public class MP3Handler {
           // natural player exit (the queue has become empty)
           _PlayerStateData.CurrentState = PlayerState.Idle;
           _PlayerStateData.StateLock.Release();
+     }
+
+     private async Task OnDisconnectAsync(ulong id) {
+          await Logger.LogAsync("[Debug/MP3Handler/OnDisconnectAsync] Triggered");
+          // await _PlayerStateData.StateLock.WaitAsync();
+          // switch (_PlayerStateData.CurrentState) {
+          //      case PlayerState.Paused:
+                    
+          //           break;
+          // }
+          // if ( == PlayerState.Paused)
+          // _PlayerStateData.StateLock.Release();
      }
 }

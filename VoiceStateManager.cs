@@ -15,7 +15,7 @@ public class VoiceStateManager {
      }
 
      // returns current
-     public async Task<IAudioClient?> ConnectAsync(IVoiceChannel targetVoiceChannel) {
+     public async Task<IAudioClient?> ConnectAsync(IVoiceChannel targetVoiceChannel, Func <ulong, Task>? OnDisconnectAsync = null) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/ConnectAsync] " + str);
           await Log("Starting ConnectAsync");
           Lock.EnterReadLock();
@@ -41,11 +41,11 @@ public class VoiceStateManager {
                AudioClient = newAudioClient;
                ConnectedVoiceChannel = targetVoiceChannel;
                AudioClient.ClientDisconnected += OnDisconnectedAsync;
+               if (OnDisconnectAsync != null) AudioClient.ClientDisconnected += OnDisconnectAsync;
 
                Lock.ExitWriteLock();
           } else ResetState();
 
-          await Log("Starting ConnectAsync");
           return AudioClient;
      }
 
