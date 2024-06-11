@@ -71,28 +71,28 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           }
      }
 
-     [SlashCommand("resume", "resumes a previously loaded song")]
-     public async Task ResumeSong() {
-          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
-          if (targetChannel == null) {
-               await RespondAsync("you are not in a voice channel");
-               return;
-          }
+     // [SlashCommand("resume", "resumes a previously loaded song")]
+     // public async Task ResumeSong() {
+     //      IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+     //      if (targetChannel == null) {
+     //           await RespondAsync("you are not in a voice channel");
+     //           return;
+     //      }
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
-          await RespondAsync("resuming...");
+     //      GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+     //      await RespondAsync("resuming...");
 
-          switch (await guildData._MP3Handler.TryPlay(targetChannel)) {
-               case MP3Handler.PlayerCommandStatus.EmptyQueue:
-                    await ModifyOriginalResponseAsync((m) => m.Content = "no songs to resume");
-                    break;
-               case MP3Handler.PlayerCommandStatus.Already:
-                    await ModifyOriginalResponseAsync((m) => m.Content = "already playing");
-                    break;
-               default:
-                    break;
-          }
-     }
+     //      switch (await guildData._MP3Handler.TryPlay(targetChannel)) {
+     //           case MP3Handler.PlayerCommandStatus.EmptyQueue:
+     //                await ModifyOriginalResponseAsync((m) => m.Content = "no songs to resume");
+     //                break;
+     //           case MP3Handler.PlayerCommandStatus.Already:
+     //                await ModifyOriginalResponseAsync((m) => m.Content = "already playing");
+     //                break;
+     //           default:
+     //                break;
+     //      }
+     // }
 
      [SlashCommand("pause", "pauses the current song")]
      public async Task PauseSong() {

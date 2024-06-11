@@ -3,6 +3,7 @@ using Discord;
 using Discord.Audio;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 
 public class MP3Handler {
 
@@ -128,14 +129,14 @@ public class MP3Handler {
           return true;
      }
 
-     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel) {
-          await _PlayerStateData.StateLock.WaitAsync();
-          if (!await TryPopQueue()) return PlayerCommandStatus.EmptyQueue; // Empty Queue
+     // public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel) {
+     //      await _PlayerStateData.StateLock.WaitAsync();
+     //      if (!await TryPopQueue()) return PlayerCommandStatus.EmptyQueue; // Empty Queue
 
-          InterruptPlayer();
-          await StartPlayer(targetChannnel);
-          return PlayerCommandStatus.Ok;
-     }
+     //      InterruptPlayer();
+     //      await StartPlayer(targetChannnel);
+     //      return PlayerCommandStatus.Ok;
+     // }
 
      // It is ASSUMED that the StateLock is Already acquired BEFORE a call to the StartPlayer function
      private async Task StartPlayer(IVoiceChannel targetChannnel) {
@@ -171,6 +172,10 @@ public class MP3Handler {
           // natural player exit (the queue has become empty)
           _PlayerStateData.CurrentState = PlayerState.Idle;
           _PlayerStateData.StateLock.Release();
+     }
+
+     public List<MP3Entry> GetCopyQueue() {
+          return SongQueue.ToList();
      }
 
      private async Task OnDisconnectAsync(ulong id) {

@@ -1,4 +1,5 @@
 Next steps:
+     Add Queue Command
      Add the ability to Loop
      Add the ability to accept search queries
 
