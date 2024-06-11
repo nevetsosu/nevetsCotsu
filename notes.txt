@@ -1,1 +1,3 @@
-I need to figure out how to deal with command spamming in async functions that are sensitive to Context
+Next steps:
+     Add the ability to Loop
+     Add the ability to accept search queries
