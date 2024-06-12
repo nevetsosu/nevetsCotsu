@@ -109,11 +109,9 @@ public class MP3Handler {
 
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
-          await Logger.LogAsync("state after waiting for tryplay part 1: " + _PlayerStateData.CurrentState);
 
           _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannnel);
           await _PlayerStateData.CurrentPlayerTask;
-          await Logger.LogAsync("state after waiting for tryplay part 2: " + _PlayerStateData.CurrentState);
 
           return PlayerCommandStatus.Ok; // return GOOD
      }
@@ -123,7 +121,6 @@ public class MP3Handler {
 
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
-          await Logger.LogAsync("state after waiting for skip part 1: " + _PlayerStateData.CurrentState);
 
           if (_PlayerStateData.CurrentFFMPEGSource != null) _PlayerStateData.CurrentFFMPEGSource.Kill();
 
@@ -141,7 +138,6 @@ public class MP3Handler {
 
           _PlayerStateData.CurrentPlayerTask = StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
           await _PlayerStateData.CurrentPlayerTask;
-          await Logger.LogAsync("state after waiting for skip part 2: " + _PlayerStateData.CurrentState);
 
           return PlayerCommandStatus.Ok; // OK
      }
@@ -245,7 +241,7 @@ public class MP3Handler {
                await Log("_PlayerStateData.CurrentFFMPEGSource is null");
                return BufferIndex;
           }
-          BufferIndex = _PlayerStateData.totalBytesWritten;
+          BufferIndex = Interlocked.Read(ref _PlayerStateData.totalBytesWritten);
           _PlayerStateData.StateLock.Release();
 
           await Log("Index: " + BufferIndex);
@@ -257,19 +253,19 @@ public class MP3Handler {
           int buffer;
           while (true) {
                if (token.IsCancellationRequested) {
-                    throw new OperationCanceledException();
+                    throw new OperationCanceledException(token);
                }
 
                if ((buffer = inputStream.ReadByte()) == -1) {
-                    break;
+                    return;
                }
 
                try {
                     outputStream.WriteByte((byte) buffer);
-                    _PlayerStateData.totalBytesWritten += 1;
                } catch {
-                    break;
+                    throw new OperationCanceledException(token);
                }
+               Interlocked.Increment(ref _PlayerStateData.totalBytesWritten);
           }
      }
 }
