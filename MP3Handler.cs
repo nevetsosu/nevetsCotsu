@@ -85,6 +85,8 @@ public class MP3Handler {
           await _PlayerStateData.CurrentPlayerTask;
 
           _PlayerStateData.CurrentState = PlayerState.Paused;
+          await Logger.LogAsync("state after pause: " + _PlayerStateData.CurrentState);
+
           _PlayerStateData.StateLock.Release();
           return PlayerCommandStatus.Ok; // return OK
      }
@@ -94,6 +96,7 @@ public class MP3Handler {
           if (!string.IsNullOrEmpty(song)) {
                AddQueue(new MP3Entry(song));
           }
+
           if (_PlayerStateData.CurrentState == PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.Already; // return Already
@@ -106,8 +109,12 @@ public class MP3Handler {
 
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
+          await Logger.LogAsync("state after waiting for tryplay part 1: " + _PlayerStateData.CurrentState);
 
-          await StartPlayer(targetChannnel);
+          _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannnel);
+          await _PlayerStateData.CurrentPlayerTask;
+          await Logger.LogAsync("state after waiting for tryplay part 2: " + _PlayerStateData.CurrentState);
+
           return PlayerCommandStatus.Ok; // return GOOD
      }
 
@@ -116,6 +123,7 @@ public class MP3Handler {
 
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
+          await Logger.LogAsync("state after waiting for skip part 1: " + _PlayerStateData.CurrentState);
 
           if (_PlayerStateData.CurrentFFMPEGSource != null) _PlayerStateData.CurrentFFMPEGSource.Kill();
 
@@ -131,7 +139,9 @@ public class MP3Handler {
                return PlayerCommandStatus.Disconnected; // Disconnected 
           }
 
-          await StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
+          _PlayerStateData.CurrentPlayerTask = StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
+          await _PlayerStateData.CurrentPlayerTask;
+          await Logger.LogAsync("state after waiting for skip part 2: " + _PlayerStateData.CurrentState);
 
           return PlayerCommandStatus.Ok; // OK
      }
@@ -179,17 +189,11 @@ public class MP3Handler {
                Stream input = FFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
-                         CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
-                         // await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
+                         // CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
+                         await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
                          await output.FlushAsync();
                          FFMPEGSource.Kill();
                     } catch (OperationCanceledException) {
-                         try {
-                              await Log("output stream index: " + output.Position);
-                         } catch (Exception e) {
-                              await Log("double catch: " + e.Message);
-                         }
-
                          _PlayerStateData.CurrentState = PlayerState.Idle;
                          return;
                     } catch (Exception e) {
@@ -251,9 +255,21 @@ public class MP3Handler {
 
      public void CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token) {
           int buffer;
-          while ((buffer = inputStream.ReadByte()) != -1 && !token.IsCancellationRequested) {
-               outputStream.WriteByte((byte) buffer);
-               _PlayerStateData.totalBytesWritten += 1;
+          while (true) {
+               if (token.IsCancellationRequested) {
+                    throw new OperationCanceledException();
+               }
+
+               if ((buffer = inputStream.ReadByte()) == -1) {
+                    break;
+               }
+
+               try {
+                    outputStream.WriteByte((byte) buffer);
+                    _PlayerStateData.totalBytesWritten += 1;
+               } catch {
+                    break;
+               }
           }
      }
 }
