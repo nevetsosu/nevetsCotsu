@@ -9,8 +9,8 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      ILogger Logger;
      ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public AdwinModule(ILogger logger, ConcurrentDictionary<ulong, GuildData> guildDataDict) {
-          Logger = logger;
+     public AdwinModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger? logger = null) {
+          Logger = logger ?? new DefaultLogger();
           GuildDataDict = guildDataDict;
      }
 

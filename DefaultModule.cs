@@ -8,8 +8,8 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
      public static readonly ulong nevetsBotsuID = 787116682266673184UL;
      public static readonly ulong AffectedUser = AdwinUserID;
      private readonly ILogger Logger;
-     public DefaultModule(ILogger logger) {
-          Logger = logger;
+     public DefaultModule(ILogger? logger = null) {
+          Logger = logger ?? new DefaultLogger();
      }
 
      [SlashCommand("ping", "respond with pong and latency")]

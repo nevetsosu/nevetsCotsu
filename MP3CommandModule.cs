@@ -1,6 +1,5 @@
 using Discord;
 using Discord.Interactions;
-using Discord.WebSocket;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
@@ -8,9 +7,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      private ILogger Logger;
      private ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public MP3CommandModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger logger) {
+     public MP3CommandModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger? logger = null) {
           GuildDataDict = guildDataDict;
-          Logger = logger;
+          Logger = logger ?? new DefaultLogger();
      }
 
      [SlashCommand("play", "start the mp3 player")]
@@ -181,17 +180,18 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
-          string VideoID = data.URL.Substring(data.URL.Length - 11, 11);
+          string VideoID = data.Value.URL.Substring(data.Value.URL.Length - 11, 11);
           await Logger.LogAsync($"[Debug/NowPlaying] Video ID: {VideoID}");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
           string timestamp = $"{VideoProgressSeconds / 3600:00}:{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
           Embed embed = new EmbedBuilder()
                          .WithTitle("Now playing")
-                         .AddField(new EmbedFieldBuilder().WithName("URL").WithValue(data.URL))
+                         .AddField(new EmbedFieldBuilder().WithName("URL").WithValue(data.Value.URL))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{VideoID}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue(timestamp))
                          .Build();
           await RespondAsync(embed: embed);
      }
+
 }

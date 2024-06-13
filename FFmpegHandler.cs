@@ -10,8 +10,8 @@ public class FFMPEGHandler {
      private static readonly string StandardInIndicator = "pipe:0";
      private static readonly string StandardOutIndicator = "pipe:1";
 
-     public FFMPEGHandler(ILogger logger) {
-          Logger = logger;
+     public FFMPEGHandler(ILogger? logger = null) {
+          Logger = logger ?? new DefaultLogger();
           Volume = DefaultVolume;
      }
 
