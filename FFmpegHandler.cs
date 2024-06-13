@@ -83,7 +83,7 @@ namespace AudioPipeline {
                return Process.Start(startInfo);
           }
 
-          public async Task YoutubeToStream(string URL, Stream outStream, CancellationToken token, float baseVolume = 1.0f) {
+          public async Task YoutubeToStream(string URL, Stream outStream, CancellationToken token = default, float baseVolume = 1.0f) {
                var Log = async (string str) => await Logger.LogAsync("[YoutubeToStream] " + str);
                Process? process = await TrySpawnYoutubeFFMPEG(URL, null, float.MaxNumber(baseVolume, 0.0f));
                if (process == null) {
@@ -105,7 +105,7 @@ namespace AudioPipeline {
                process.Dispose();
           }
 
-          public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token, float baseVolume = 1.0f) {
+          public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token = default, float baseVolume = 1.0f) {
                var Log = async (string str) => await Logger.LogAsync("[FileToOutputStream] " + str);
                Process? process = await TrySpawnFFMPEG(filepath, null, float.MaxNumber(baseVolume, 0.0f));
                if (process == null) {

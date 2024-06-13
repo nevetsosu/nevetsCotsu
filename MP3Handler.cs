@@ -249,17 +249,16 @@ public class MP3Handler {
           return BufferIndex / (48000 * 2 * 2);
      }
 
-     public async Task<ulong> CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token) {
+     public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
           byte[] buffer = new byte[16];
-          int red;
-          while (true) {
-               try {
-                    red = await inputStream.ReadAsync(buffer, 0, 16, token);
-                    Interlocked.Add(ref _PlayerStateData.totalBytesWritten, red);
-                    await outputStream.WriteAsync(buffer, 0, red, token).ConfigureAwait(false);
-               } catch {
-                    throw new OperationCanceledException(token);
+          try {
+               while (true) {
+                    await inputStream.ReadExactlyAsync(buffer, 0, 16, token);
+                    Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
+                    await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
                }
+          } catch {
+               throw new OperationCanceledException(token);
           }
      }
 }
