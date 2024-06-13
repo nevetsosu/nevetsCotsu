@@ -277,7 +277,10 @@ public class MP3Handler {
           private ConcurrentQueue<MP3Entry> SongQueue;
           private FFMPEGHandler _FFMPEGHandler;
           private SemaphoreSlim sem;
-          bool Preloaded;
+          private bool SongQueueNextPreloaded;
+          private bool LoopingSongPreloaded;
+          private bool Looping;
+          private Process? LoopingProcess;
           ILogger Logger;
 
           public MP3Queue(PlayerStateData playerStateData, ILogger? logger = null) {
@@ -286,7 +289,10 @@ public class MP3Handler {
                sem = new(1, 1);
                Logger = logger ?? new DefaultLogger();
                _FFMPEGHandler = new();
-               Preloaded = false;
+               SongQueueNextPreloaded = false;
+               LoopingSongPreloaded = false;
+               Looping = false;
+               LoopingProcess = null;
           }
 
           public List<MP3Entry> EntryList() {
@@ -318,27 +324,41 @@ public class MP3Handler {
                sem.Wait();
                MP3Entry? e;
                if (SongQueue.TryDequeue(out e)) {
-                    Preloaded = false;
+                    SongQueueNextPreloaded = false;
                     await TryPreloadNext();
                     sem.Release();
                     return e;
                }
                sem.Release();
                return null;
-
           }
 
           // returns whether there the top of the queue is preloaded (it may already be preloaded)
+          // assumes that the sem is already acquired
           private async Task<bool> TryPreloadNext() {
-               if (Preloaded) return true;
+               if (SongQueueNextPreloaded) return true;
                MP3Entry? e;
                if (SongQueue.TryPeek(out e)) {
                     e.FFMPEG = await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(e.URL, null, 1.0f);
-                    Preloaded = true;
+                    SongQueueNextPreloaded = true;
                     return true;
                }
-               Preloaded = false;
+               SongQueueNextPreloaded = false;
                return false;
+          }
+
+          // finish this function
+          // private async Task<bool> TryPreloadLoop() {
+          //      await sem.WaitAsync();
+
+          //      sem.Release();
+          //      return true;
+          // }
+
+          public async Task SetLooping(bool looping) {
+               await sem.WaitAsync();
+               Looping = looping;
+               sem.Release();
           }
      }
 }
