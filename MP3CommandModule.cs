@@ -181,7 +181,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
-          string VideoID = data.URL.Split("v=").Last().Substring(0, 11);
+          string VideoID = data.URL.Substring(data.URL.Length - 11, 11);
           await Logger.LogAsync($"[Debug/NowPlaying] Video ID: {VideoID}");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
