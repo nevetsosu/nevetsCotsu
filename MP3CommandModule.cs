@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> {
      private ILogger Logger;
@@ -13,17 +14,25 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      }
 
      [SlashCommand("play", "start the mp3 player")]
-     public async Task StartPlayer(string? song = null) {
+     public async Task Play(string? song = default) {
+          // link validity check
+          string? YoutubeID = null;
+          if (song != null) {
+               YoutubeID = GetYoutubeID(song);
+               if (string.IsNullOrEmpty(YoutubeID)) YoutubeID = "dQw4w9WgXcQ";
+          }
+
           IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
           }
           await RespondAsync("playing...");
+
           // check if it is a URL, other wise look it up on Youtube
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
 
-          switch (await guildData._MP3Handler.TryPlay(targetChannel, song)) {
+          switch (await guildData._MP3Handler.TryPlay(targetChannel, song == null ? null : @"https://www.youtube.com/v/" + YoutubeID)) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
@@ -34,6 +43,17 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                     break;
           }
 
+     }
+
+     private string? GetYoutubeID(string url) {
+          const string pattern = @"^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/)|youtu\.be\/)(?<videoId>[A-Za-z0-9_-]{11})(?:[?&].*)?$";
+          Match match = Regex.Match(url, pattern);
+          if (match.Success) {
+               return match.Groups["videoId"].Value;
+          } else {
+               Logger.LogAsync("Invalid URL");
+               return null; // rick roll video ID on failure
+          }
      }
 
      // [SlashCommand("queueadd", "add a song to the queue")]
@@ -161,16 +181,16 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
-          string VideoID = data.URL.Split("v=").Last();
+          string VideoID = data.URL.Split("v=").Last().Substring(0, 11);
           await Logger.LogAsync($"[Debug/NowPlaying] Video ID: {VideoID}");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
-
+          string timestamp = $"{VideoProgressSeconds / 3600:00}:{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
           Embed embed = new EmbedBuilder()
                          .WithTitle("Now playing")
                          .AddField(new EmbedFieldBuilder().WithName("URL").WithValue(data.URL))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{VideoID}/default.jpg")
-                         .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"{VideoProgressSeconds}s"))
+                         .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue(timestamp))
                          .Build();
           await RespondAsync(embed: embed);
      }

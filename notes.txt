@@ -1,5 +1,4 @@
 Next steps:
-     Add now playing command
      Add the ability to Loop
      Add the ability to accept search queries
 

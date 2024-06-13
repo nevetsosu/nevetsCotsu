@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Discord;
 using Discord.Audio;
 using Discord.Interactions;
-using AudioPipeline;
 
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static bool AllowAdwin = true;
