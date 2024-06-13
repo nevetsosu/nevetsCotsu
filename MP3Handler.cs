@@ -262,8 +262,7 @@ public class MP3Handler {
           } catch (EndOfStreamException) {
                await Logger.LogAsync("end of read stream");
                throw new OperationCanceledException();
-          }
-          catch {
+          } catch {
                throw new OperationCanceledException(token);
           }
      }
