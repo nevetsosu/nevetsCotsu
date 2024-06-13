@@ -1,4 +1,3 @@
-using AudioPipeline;
 using Discord;
 using Discord.Audio;
 using System.Diagnostics;
@@ -21,13 +20,13 @@ public class MP3Handler {
      }
 
      private struct PlayerStateData {
-          public Process? CurrentFFMPEGSource;
-          public Task CurrentPlayerTask;
-          public MP3Entry CurrentEntry;
-          public PlayerState CurrentState;
-          public SemaphoreSlim StateLock;
-          public CancellationTokenSource InterruptSource;
-          public long totalBytesWritten;
+          public Process? CurrentFFMPEGSource; // per mp3 instance
+          public Task CurrentPlayerTask; // per mp3 instance
+          public MP3Entry CurrentEntry; // per song
+          public PlayerState CurrentState; // global to the mp3 handler instance
+          public SemaphoreSlim StateLock; // global to the mp3 handler instance
+          public CancellationTokenSource InterruptSource; // per mp3 instance
+          public long totalBytesWritten; // per song
           public PlayerStateData() {
                CurrentState = PlayerState.Idle;
                CurrentFFMPEGSource = null;
@@ -154,6 +153,7 @@ public class MP3Handler {
           _PlayerStateData.CurrentFFMPEGSource = await new FFMPEGHandler(Logger).TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
           if (_PlayerStateData.CurrentFFMPEGSource == null) return false;
           _PlayerStateData.CurrentEntry = entry;
+          _PlayerStateData.totalBytesWritten = 0;
           return true;
      }
 
@@ -209,6 +209,8 @@ public class MP3Handler {
      }
 
      private async Task OnDisconnectAsync(ulong id) {
+          // if i want all disconnects to make state idle, i can use the state lock and await the current player task and set state to idle
+          // awaiting the current player should make this ensure current state
           await Logger.LogAsync("[Debug/MP3Handler/OnDisconnectAsync] Triggered");
           // await _PlayerStateData.StateLock.WaitAsync();
           // switch (_PlayerStateData.CurrentState) {
@@ -222,7 +224,7 @@ public class MP3Handler {
 
      public async Task<SongData?> NowPlaying() {
           await _PlayerStateData.StateLock.WaitAsync();
-          if (_PlayerStateData.CurrentState == PlayerState.Paused && _PlayerStateData.CurrentState == PlayerState.Playing) {
+          if (_PlayerStateData.CurrentState != PlayerState.Paused && _PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
                return null;
           }
@@ -246,7 +248,7 @@ public class MP3Handler {
 
           await Log("Index: " + BufferIndex);
 
-          return BufferIndex / (48000 * 2 * 2);
+          return BufferIndex / (48000 * 2 * 2); // bit rate * # channels * bit depth in bytes
      }
 
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
@@ -257,7 +259,11 @@ public class MP3Handler {
                     Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
                     await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
                }
-          } catch {
+          } catch (EndOfStreamException) {
+               await Logger.LogAsync("end of read stream");
+               throw new OperationCanceledException();
+          }
+          catch {
                throw new OperationCanceledException(token);
           }
      }
