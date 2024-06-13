@@ -185,8 +185,8 @@ public class MP3Handler {
                Stream input = FFMPEGSource.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
-                         // CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
-                         await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
+                         await CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
+                         // await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
                          await output.FlushAsync();
                          FFMPEGSource.Kill();
                     } catch (OperationCanceledException) {
@@ -249,23 +249,17 @@ public class MP3Handler {
           return BufferIndex / (48000 * 2 * 2);
      }
 
-     public void CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token) {
-          int buffer;
+     public async Task<ulong> CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token) {
+          byte[] buffer = new byte[16];
+          int red;
           while (true) {
-               if (token.IsCancellationRequested) {
-                    throw new OperationCanceledException(token);
-               }
-
-               if ((buffer = inputStream.ReadByte()) == -1) {
-                    return;
-               }
-
                try {
-                    outputStream.WriteByte((byte) buffer);
+                    red = await inputStream.ReadAsync(buffer, 0, 16, token);
+                    Interlocked.Add(ref _PlayerStateData.totalBytesWritten, red);
+                    await outputStream.WriteAsync(buffer, 0, red, token).ConfigureAwait(false);
                } catch {
                     throw new OperationCanceledException(token);
                }
-               Interlocked.Increment(ref _PlayerStateData.totalBytesWritten);
           }
      }
 }
