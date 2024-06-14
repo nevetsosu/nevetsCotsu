@@ -257,17 +257,27 @@ public class MP3Handler {
 
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
           byte[] buffer = new byte[16];
-          try {
-               while (true) {
+
+          while (true) {
+               try {
                     await inputStream.ReadExactlyAsync(buffer, 0, 16, token);
-                    Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
-                    await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
+               } catch (OperationCanceledException) {
+                    throw new OperationCanceledException();
+               } catch (Exception e) {
+                    await Logger.LogAsync("read fail" + e.Message);
+                    throw new OperationCanceledException(token);
                }
-          } catch (EndOfStreamException) {
-               await Logger.LogAsync("end of read stream");
-               throw new OperationCanceledException();
-          } catch {
-               throw new OperationCanceledException(token);
+
+               Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
+
+               try {
+                    await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
+               } catch (OperationCanceledException) {
+                    throw new OperationCanceledException();
+               } catch (Exception e) {
+                    await Logger.LogAsync("write fail" + e.Message);
+                    throw new OperationCanceledException(token);
+               }
           }
      }
 
