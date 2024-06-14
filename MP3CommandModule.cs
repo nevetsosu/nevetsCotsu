@@ -14,19 +14,19 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("play", "start the mp3 player")]
      public async Task Play(string? song = default) {
-          // link validity check
-          string? YoutubeID = null;
-          if (song != null) {
-               YoutubeID = GetYoutubeID(song);
-               if (string.IsNullOrEmpty(YoutubeID)) YoutubeID = "dQw4w9WgXcQ";
-          }
-
           IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
           }
-          await RespondAsync("playing...");
+
+          // link validity check
+          string? YoutubeID = null;
+          if (song != null && string.IsNullOrEmpty(YoutubeID = GetYoutubeID(song))) { // normally u would do a lookup instead of saying an error
+               await RespondAsync("Invalid song link...but heres a song anyway");
+               YoutubeID = "dQw4w9WgXcQ";
+          }
+          else await RespondAsync("playing...");
 
           // check if it is a URL, other wise look it up on Youtube
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id

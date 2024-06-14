@@ -13,7 +13,7 @@ public class MP3Handler {
      }
 
      public enum PlayerCommandStatus {
-          EmptyQueue, Already, Ok, Disconnected
+          EmptyQueue, Already, Ok, Disconnected, InvalidArgument
      }
      private enum PlayerState {
           Paused, Playing, Idle
