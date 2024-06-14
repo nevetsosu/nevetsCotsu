@@ -261,7 +261,8 @@ public class MP3Handler {
           while (true) {
                try {
                     await inputStream.ReadExactlyAsync(buffer, 0, 16, token);
-               } catch (OperationCanceledException) {
+               } catch (OperationCanceledException e) {
+                    await Logger.LogAsync("READ ERROR Inner Exception: " + e.InnerException?.Message ?? "no inner exception");
                     throw new OperationCanceledException();
                } catch (Exception e) {
                     await Logger.LogAsync("read fail" + e.Message);
@@ -272,7 +273,8 @@ public class MP3Handler {
 
                try {
                     await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
-               } catch (OperationCanceledException) {
+               } catch (OperationCanceledException e) {
+                    await Logger.LogAsync("WRITE ERROR Inner Exception: " + e.InnerException?.Message ?? "no inner exception");
                     throw new OperationCanceledException();
                } catch (Exception e) {
                     await Logger.LogAsync("write fail" + e.Message);
