@@ -40,7 +40,7 @@ public class VoiceStateManager {
 
                AudioClient = newAudioClient;
                ConnectedVoiceChannel = targetVoiceChannel;
-               AudioClient.ClientDisconnected += OnDisconnectedAsync;
+               AudioClient.Disconnected += OnDisconnectedAsync;
                if (OnDisconnectAsync != null) AudioClient.ClientDisconnected += OnDisconnectAsync;
 
                Lock.ExitWriteLock();
@@ -56,9 +56,9 @@ public class VoiceStateManager {
           Lock.ExitWriteLock();
      }
 
-     public async Task OnDisconnectedAsync(ulong id) {
+     public async Task OnDisconnectedAsync(Exception e) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/OnDisconnectedAsync] " + str);
-          await Log("reset voice state");
+          await Log("reset voice state: id " + e.Message);
 
           ResetState();
      }
