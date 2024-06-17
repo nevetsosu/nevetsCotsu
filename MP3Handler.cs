@@ -285,40 +285,6 @@ public class MP3Handler {
           }
      }
 
-     public async Task LocosTacosInterrupt(IVoiceChannel targetChannel) {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/LocosTacosInterrupt] " + str);
-
-          await _PlayerStateData.StateLock.WaitAsync();
-
-          InterruptPlayer();
-          await _PlayerStateData.CurrentPlayerTask;
-          _PlayerStateData.CurrentState = PlayerState.Paused;
-
-          // Check if file exists
-          const string filepath = @"/home/nevets/code/dotnetDiscordBot/locostacos.mp3";
-          if (!File.Exists(filepath))
-          {
-               await Log($"File '{filepath}' not found!");
-               _PlayerStateData.StateLock.Release();
-               return;
-          }
-
-          IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannel);
-          if (AudioClient == null || AudioClient.ConnectionState != ConnectionState.Connected) {
-               _PlayerStateData.StateLock.Release();
-               return;
-          }
-
-          // Play as many times as their have been commands on this Guild
-          FFMPEGHandler ffmpeg = new FFMPEGHandler();
-          _PlayerStateData.StateLock.Release();
-          using (var stream = AudioClient.CreatePCMStream(AudioApplication.Mixed)) { // consider try catch for this line
-               try {
-                    await ffmpeg.ReadFileToStream(filepath, stream, _PlayerStateData.InterruptSource.Token, 1.0f);
-               } catch (OperationCanceledException) {}
-          }
-     }
-
      public async Task<PlayerCommandStatus> ToggleLooping() {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState != PlayerState.Playing && _PlayerStateData.CurrentState != PlayerState.Paused) {
