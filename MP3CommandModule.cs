@@ -194,4 +194,26 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync(embed: embed);
      }
 
+     [SlashCommand("loop", "toggles looping")]
+     public async Task Loop() {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          await RespondAsync("toggling looping...");
+          switch (await guildData._MP3Handler.ToggleLooping()) {
+               case MP3Handler.PlayerCommandStatus.Ok2:
+                    await ModifyOriginalResponseAsync(m => m.Content = "Looping");
+                    break;
+               case MP3Handler.PlayerCommandStatus.Ok:
+                    await ModifyOriginalResponseAsync(m => m.Content = "no longer looping");
+                    break;
+               case MP3Handler.PlayerCommandStatus.Disconnected:
+                    await ModifyOriginalResponseAsync(m => m.Content = "bot is currently disconnected");
+                    break;
+               case MP3Handler.PlayerCommandStatus.NotCurrentlyPlaying:
+                    await ModifyOriginalResponseAsync(m => m.Content = "there is nothing to loop right now");
+                    break;
+               default:
+                    break;
+          };
+     }
+
 }

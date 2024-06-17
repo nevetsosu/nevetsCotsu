@@ -13,9 +13,9 @@ public class MP3Handler {
      }
 
      public enum PlayerCommandStatus {
-          EmptyQueue, Already, Ok, Disconnected, InvalidArgument
+          EmptyQueue, Already, Ok, Ok2, Disconnected, InvalidArgument, NotCurrentlyPlaying
      }
-     private enum PlayerState {
+          private enum PlayerState {
           Paused, Playing, Idle
      }
 
@@ -36,7 +36,7 @@ public class MP3Handler {
           }
      }
 
-     public class MP3Entry {
+     public class MP3Entry{
           public string URL;
           public Process? FFMPEG;
 
@@ -44,7 +44,7 @@ public class MP3Handler {
                URL = url;
                FFMPEG = ffmpeg;
           }
-     }
+    }
 
      private VoiceStateManager _VoiceStateManager;
      private MP3Queue SongQueue;
@@ -273,7 +273,7 @@ public class MP3Handler {
 
                try {
                     await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
-               } catch (OperationCanceledException e) {
+               } catch (OperationCanceledException e) { 
                     await Logger.LogAsync("WRITE ERROR Inner Exception: " + e.InnerException?.Message ?? "no inner exception");
                     throw new OperationCanceledException();
                } catch (Exception e) {
@@ -324,6 +324,28 @@ public class MP3Handler {
           }
      }
 
+     public async Task<PlayerCommandStatus> ToggleLooping() {
+          await _PlayerStateData.StateLock.WaitAsync();
+          if (_PlayerStateData.CurrentState != PlayerState.Playing && _PlayerStateData.CurrentState != PlayerState.Paused) {
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.NotCurrentlyPlaying;
+          }
+
+          if (SongQueue.Looping) {
+               await SongQueue.DisableLooping();
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.Ok; // not looping
+          }
+          else if (_PlayerStateData.CurrentEntry != null) {
+               await SongQueue.EnableLooping(_PlayerStateData.CurrentEntry);
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.Ok2; // looping
+          }
+
+          _PlayerStateData.StateLock.Release();
+          return PlayerCommandStatus.Disconnected;
+     }
+
      private class MP3Queue {
           public int Count { get => SongQueue.Count; }
           private PlayerStateData _PlayerStateData;
@@ -331,9 +353,8 @@ public class MP3Handler {
           private FFMPEGHandler _FFMPEGHandler;
           private SemaphoreSlim sem;
           private bool SongQueueNextPreloaded;
-          private bool LoopingSongPreloaded;
-          private bool Looping;
-          private Process? LoopingProcess;
+          private MP3Entry? LoopingEntry;
+          public bool Looping { get; private set; }
           ILogger Logger;
 
           public MP3Queue(PlayerStateData playerStateData, ILogger? logger = null) {
@@ -343,9 +364,8 @@ public class MP3Handler {
                Logger = logger ?? new DefaultLogger();
                _FFMPEGHandler = new();
                SongQueueNextPreloaded = false;
-               LoopingSongPreloaded = false;
                Looping = false;
-               LoopingProcess = null;
+               LoopingEntry = null;
           }
 
           public List<MP3Entry> EntryList() {
@@ -376,6 +396,13 @@ public class MP3Handler {
           public async Task<MP3Entry?> TryDequeue() {
                sem.Wait();
                MP3Entry? e;
+
+               if (Looping && LoopingEntry != null) {
+                    e = LoopingEntry;
+                    LoopingEntry = new MP3Entry(e.URL, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(e.URL, null, 1.0f));
+                    sem.Release();
+                    return e;
+               }
                if (SongQueue.TryDequeue(out e)) {
                     SongQueueNextPreloaded = false;
                     await TryPreloadNext();
@@ -408,9 +435,29 @@ public class MP3Handler {
           //      return true;
           // }
 
-          public async Task SetLooping(bool looping) {
+          public async Task EnableLooping(MP3Entry entry) {
                await sem.WaitAsync();
-               Looping = looping;
+               if (Looping) {
+                    sem.Release();
+                    return;
+               }
+               LoopingEntry = new MP3Entry(entry.URL, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f));
+
+               Looping = true;
+               sem.Release();
+          }
+
+          public async Task DisableLooping() {
+               await sem.WaitAsync();
+               if (!Looping) {
+                    sem.Release();
+                    return;
+               }
+               try {
+                    if (LoopingEntry?.FFMPEG != null) LoopingEntry.FFMPEG.Kill();
+               } catch {}
+               LoopingEntry = null;
+               Looping = false;
                sem.Release();
           }
      }
