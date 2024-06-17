@@ -194,7 +194,7 @@ public class MP3Handler {
                          await output.FlushAsync();
                          FFMPEG.Kill();
                     } catch (OperationCanceledException) {
-                         _PlayerStateData.CurrentState = PlayerState.Idle;
+                         _PlayerStateData.CurrentState = PlayerState.Paused;
                          return;
                     } catch (Exception e) {
                          await Log("generic exception: " + e.Message);
@@ -263,10 +263,12 @@ public class MP3Handler {
                     await inputStream.ReadExactlyAsync(buffer, 0, 16, token);
                } catch (OperationCanceledException e) {
                     await Logger.LogAsync("READ ERROR Inner Exception: " + e.InnerException?.Message ?? "no inner exception");
-                    throw new OperationCanceledException();
+               //      throw new OperationCanceledException();
+                    break;
                } catch (Exception e) {
                     await Logger.LogAsync("read fail" + e.Message);
-                    throw new OperationCanceledException(token);
+               //      throw new OperationCanceledException(token);
+                    break;
                }
 
                Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
@@ -287,25 +289,22 @@ public class MP3Handler {
           var Log = async (string str) => await Logger.LogAsync("[Debug/LocosTacosInterrupt] " + str);
 
           await _PlayerStateData.StateLock.WaitAsync();
-          bool ResumeAfter = _PlayerStateData.CurrentState == PlayerState.Playing;
-          if (ResumeAfter) {
-               InterruptPlayer();
-               await _PlayerStateData.CurrentPlayerTask;
-          }
+
+          InterruptPlayer();
+          await _PlayerStateData.CurrentPlayerTask;
+          _PlayerStateData.CurrentState = PlayerState.Paused;
 
           // Check if file exists
           const string filepath = @"/home/nevets/code/dotnetDiscordBot/locostacos.mp3";
           if (!File.Exists(filepath))
           {
                await Log($"File '{filepath}' not found!");
-               if (ResumeAfter && _VoiceStateManager.ConnectedVoiceChannel != null) await TryPlay(_VoiceStateManager.ConnectedVoiceChannel);
                _PlayerStateData.StateLock.Release();
                return;
           }
 
           IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannel);
           if (AudioClient == null || AudioClient.ConnectionState != ConnectionState.Connected) {
-               if (ResumeAfter && _VoiceStateManager.ConnectedVoiceChannel != null) await TryPlay(_VoiceStateManager.ConnectedVoiceChannel);
                _PlayerStateData.StateLock.Release();
                return;
           }
@@ -313,14 +312,10 @@ public class MP3Handler {
           // Play as many times as their have been commands on this Guild
           FFMPEGHandler ffmpeg = new FFMPEGHandler();
           _PlayerStateData.StateLock.Release();
-          using (var stream = AudioClient.CreatePCMStream(AudioApplication.Music)) { // consider try catch for this line
+          using (var stream = AudioClient.CreatePCMStream(AudioApplication.Mixed)) { // consider try catch for this line
                try {
                     await ffmpeg.ReadFileToStream(filepath, stream, _PlayerStateData.InterruptSource.Token, 1.0f);
-               } catch (OperationCanceledException) {
-
-               } finally {
-                    if (ResumeAfter && _VoiceStateManager.ConnectedVoiceChannel != null) await TryPlay(_VoiceStateManager.ConnectedVoiceChannel);
-               }
+               } catch (OperationCanceledException) {}
           }
      }
 
