@@ -2,7 +2,6 @@ Next steps:
      Add the ability to accept search queries
 
 For Later:
-Add a preload system to avoid the initial load time on getting a youtube video
 Improve the Queue Command
 
 Rework the CopyAsync Command to differentiate from read fails(ffmpeg failed), cancels (interrupt), and write fails (force disconnnnect)
