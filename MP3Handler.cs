@@ -262,24 +262,24 @@ public class MP3Handler {
                try {
                     await inputStream.ReadExactlyAsync(buffer, 0, 16, token);
                } catch (OperationCanceledException e) {
-                    await Logger.LogAsync("READ ERROR Inner Exception: " + e.InnerException?.Message ?? "no inner exception");
+                    await Logger.LogAsync("READ ERROR: " + e.Message);
                //      throw new OperationCanceledException();
-                    break;
+                    return;
                } catch (Exception e) {
-                    await Logger.LogAsync("read fail" + e.Message);
+                    await Logger.LogAsync("read fail: " + e.Message);
                //      throw new OperationCanceledException(token);
-                    break;
+                    return;
                }
 
                Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
 
                try {
                     await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
-               } catch (OperationCanceledException e) { 
-                    await Logger.LogAsync("WRITE ERROR Inner Exception: " + e.InnerException?.Message ?? "no inner exception");
+               } catch (OperationCanceledException e) {
+                    await Logger.LogAsync("WRITE ERROR: " + e.Message);
                     throw new OperationCanceledException();
                } catch (Exception e) {
-                    await Logger.LogAsync("write fail" + e.Message);
+                    await Logger.LogAsync("write fail: " + e.Message);
                     throw new OperationCanceledException(token);
                }
           }

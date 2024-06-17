@@ -184,7 +184,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await Logger.LogAsync($"[Debug/NowPlaying] Video ID: {VideoID}");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
-          string timestamp = $"{VideoProgressSeconds / 3600:00}:{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
+          string timestamp;
+          if (VideoProgressSeconds / 3600 > 0) timestamp = $"{VideoProgressSeconds / 3600:00}{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
+          else timestamp = $"{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
+
           Embed embed = new EmbedBuilder()
                          .WithTitle("Now playing")
                          .AddField(new EmbedFieldBuilder().WithName("URL").WithValue(data.Value.URL))
