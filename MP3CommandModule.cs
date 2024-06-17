@@ -179,6 +179,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                await RespondAsync("no song currently playing");
                return;
           }
+          await RespondAsync("thinking");
 
           string VideoID = data.Value.URL.Substring(data.Value.URL.Length - 11, 11);
           await Logger.LogAsync($"[Debug/NowPlaying] Video ID: {VideoID}");
@@ -194,7 +195,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{VideoID}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue(timestamp))
                          .Build();
-          await RespondAsync(embed: embed);
+          await ModifyOriginalResponseAsync(m => { m.Content = ""; m.Embed = embed; });
      }
 
      [SlashCommand("loop", "toggles looping")]

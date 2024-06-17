@@ -212,7 +212,7 @@ public class MP3Handler {
           return SongQueue.EntryList();
      }
 
-     private async Task OnDisconnectAsync(ulong id) {
+     private async Task OnDisconnectAsync(Exception e) {
           // if i want all disconnects to make state idle, i can use the state lock and await the current player task and set state to idle
           // awaiting the current player should make this ensure current state
           await Logger.LogAsync("[Debug/MP3Handler/OnDisconnectAsync] Triggered");

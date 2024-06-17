@@ -95,29 +95,29 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           await RespondAsync("Leaving...");
 
-          bool success = await TryLeaveVoiceChannel();
-          if (!success) await ModifyOriginalResponseAsync((m) => m.Content = "Leaving...Failed");
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger));
+          await guildData._VoiceStateManager.DisconnectAsync(Context.Guild.CurrentUser.VoiceChannel);
      }
 
-     private async Task<bool> TryLeaveVoiceChannel() {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/TryLeaveVoiceChannel] " + str);
+     // private async Task<bool> TryLeaveVoiceChannel() {
+     //      var Log = async (string str) => await Logger.LogAsync("[Debug/TryLeaveVoiceChannel] " + str);
 
-          if (Context.Guild?.CurrentUser == null) {
-               await Log("failed initial check");
-               return false;
-          }
+     //      if (Context.Guild?.CurrentUser == null) {
+     //           await Log("failed initial check");
+     //           return false;
+     //      } 
 
-          if (Context.Guild.CurrentUser.VoiceChannel == null) {
-               await Log("bot is already disconnected");
-               return true;
-          }
+     //      if (Context.Guild.CurrentUser.VoiceChannel == null) {
+     //           await Log("bot is already disconnected");
+     //           return true;
+     //      }
 
-          try {
-               await Context.Guild.CurrentUser.VoiceChannel.DisconnectAsync();
-               return true;
-          } catch (Exception e) {
-               await Log("failed to leave: " + e.Message);
-               return false;
-          }
-     }
+     //      try {
+     //           await Context.Guild.CurrentUser.VoiceChannel.DisconnectAsync();
+     //           return true;
+     //      } catch (Exception e) {
+     //           await Log("failed to leave: " + e.Message);
+     //           return false;
+     //      }
+     // }
 }

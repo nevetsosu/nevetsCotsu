@@ -4,62 +4,94 @@ using Discord.Audio;
 public class VoiceStateManager {
      public IAudioClient? AudioClient;
      public IVoiceChannel? ConnectedVoiceChannel;
-     private ReaderWriterLockSlim Lock;
+     private SemaphoreSlim Lock;
      private ILogger Logger;
 
      public VoiceStateManager(ILogger logger) {
           AudioClient = null;
           ConnectedVoiceChannel = null;
-          Lock = new ReaderWriterLockSlim();
+          Lock = new(1, 1);
           Logger = logger;
      }
 
      // returns current
-     public async Task<IAudioClient?> ConnectAsync(IVoiceChannel targetVoiceChannel, Func <ulong, Task>? OnDisconnectAsync = null) {
+     public async Task<IAudioClient?> ConnectAsync(IVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/ConnectAsync] " + str);
           await Log("Starting ConnectAsync");
-          Lock.EnterReadLock();
+
+          await Lock.WaitAsync();
           if (AudioClient != null && AudioClient.ConnectionState == ConnectionState.Connected && ConnectedVoiceChannel == targetVoiceChannel) {
-               Lock.ExitReadLock();
+               Lock.Release();
                return AudioClient;
           }
-          Lock.ExitReadLock();
 
           // Try Discord.Net IVoiceChannel.ConnectAsync
           IAudioClient? newAudioClient;
           try {
+               await Log("here 2");
                newAudioClient = await targetVoiceChannel.ConnectAsync();
           } catch (Exception e) {
                ResetState();
+               Lock.Release();
                await Log("Failed to connect to voice Channel: " + e.Message);
                return null;
           }
 
           if (newAudioClient != null) {
-               Lock.EnterWriteLock();
-
                AudioClient = newAudioClient;
                ConnectedVoiceChannel = targetVoiceChannel;
                AudioClient.Disconnected += OnDisconnectedAsync;
-               if (OnDisconnectAsync != null) AudioClient.ClientDisconnected += OnDisconnectAsync;
-
-               Lock.ExitWriteLock();
-          } else ResetState();
+               AudioClient.ClientDisconnected += OnClientDisconnectAsync;
+               if (OnDisconnectAsync != null) AudioClient.Disconnected += OnDisconnectAsync;
+          } else {
+               AudioClient = null;
+               ConnectedVoiceChannel = null;
+          }
+          Lock.Release();
 
           return AudioClient;
      }
 
-     public void ResetState() {
-          Lock.EnterWriteLock();
+     public async Task DisconnectAsync(IVoiceChannel voiceChannel) {
+          await Lock.WaitAsync();
+          if (ConnectedVoiceChannel != null) {
+               try {
+                    await voiceChannel.DisconnectAsync();
+               } catch {}
+          }
+
           AudioClient = null;
           ConnectedVoiceChannel = null;
-          Lock.ExitWriteLock();
+
+          Lock.Release();
+     }
+
+     public void ResetState() {
+          AudioClient = null;
+          ConnectedVoiceChannel = null;
      }
 
      public async Task OnDisconnectedAsync(Exception e) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/OnDisconnectedAsync] " + str);
-          await Log("reset voice state: id " + e.Message);
-
+          await Log("reset voice state: " + e.Message);
+          await Lock.WaitAsync();
           ResetState();
+          Lock.Release();
+     }
+
+     public async Task OnClientDisconnectAsync(ulong id) {
+          var Log = async (string str) => await Logger.LogAsync("[Debug/OnClientDisconnectAsync] " + str);
+          await Log("ClientDisconnected: id " + id);
+          await Lock.WaitAsync();
+          if (AudioClient != null) {
+               try {
+                    await AudioClient.StopAsync();
+               } catch {}
+          }
+
+          AudioClient = null;
+          ConnectedVoiceChannel = null;
+
+          Lock.Release();
      }
 }
