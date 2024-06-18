@@ -8,8 +8,8 @@ public class MP3Handler {
      public enum PlayerCommandStatus {
           EmptyQueue, Already, Ok, Ok2, Disconnected, InvalidArgument, NotCurrentlyPlaying
      }
-          private enum PlayerState {
-          Paused, Playing, Idle
+     private enum PlayerState {
+     Paused, Playing, Idle
      }
 
      private struct PlayerStateData {
@@ -46,6 +46,8 @@ public class MP3Handler {
      private PlayerStateData _PlayerStateData;
 
      public int QueueCount { get => SongQueue.Count; }
+     public bool Looping { get => SongQueue.Looping; }
+
      public MP3Handler(VoiceStateManager voiceStateManager, ILogger logger) {
           _VoiceStateManager = voiceStateManager;
           _PlayerStateData = new();
@@ -65,90 +67,105 @@ public class MP3Handler {
      public async Task<PlayerCommandStatus> Pause() {
           await _PlayerStateData.StateLock.WaitAsync();
 
+          // check if its already paused
           if (_PlayerStateData.CurrentState == PlayerState.Paused) {
                _PlayerStateData.StateLock.Release();
-               return PlayerCommandStatus.Already; // return ALREADY
+               return PlayerCommandStatus.Already;
           }
 
+          // check other non-playing conditions
           if (_PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
-               return PlayerCommandStatus.EmptyQueue;
+               return PlayerCommandStatus.EmptyQueue; // this actually serves as a "not currently playing" error
           }
+
+          // Pause
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
-
           _PlayerStateData.CurrentState = PlayerState.Paused;
-          await Logger.LogAsync("state after pause: " + _PlayerStateData.CurrentState);
 
           _PlayerStateData.StateLock.Release();
-          return PlayerCommandStatus.Ok; // return OK
+          return PlayerCommandStatus.Ok;
      }
 
      public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel, MP3Entry? entry = null) {
           await _PlayerStateData.StateLock.WaitAsync();
+
+          // queue as long as the VideoID is not null
           if (!string.IsNullOrEmpty(entry?.VideoID)) {
                await Enqueue(entry);
           }
 
+          // check if its playing already
           if (_PlayerStateData.CurrentState == PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
-               return PlayerCommandStatus.Already; // return Already
+               return PlayerCommandStatus.Already;
           }
 
+          // check if theres anything to play
           if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
-               return PlayerCommandStatus.EmptyQueue; // return EMPTYQUEUE
+               return PlayerCommandStatus.EmptyQueue;
           }
 
+          // gaurentee that no other player is going to be running at the same time
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
 
+          // play 
           _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannnel);
           await _PlayerStateData.CurrentPlayerTask;
 
-          return PlayerCommandStatus.Ok; // return GOOD
+          return PlayerCommandStatus.Ok;
      }
 
      public async Task<PlayerCommandStatus> SkipSong() {
           await _PlayerStateData.StateLock.WaitAsync();
 
+          // stop the current player and kill the audio process
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
-
           if (_PlayerStateData.CurrentEntry?.FFMPEG != null) _PlayerStateData.CurrentEntry.FFMPEG.Kill();
 
+          // try to load another song
           if (!await TryPopQueue()) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.EmptyQueue; // Empty Queue
           }
 
-          if (_VoiceStateManager.ConnectedVoiceChannel == null) {
+          // check if the bot is still connected
+          IVoiceChannel? targetChannel = _VoiceStateManager.ConnectedVoiceChannel;
+          if (targetChannel == null) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
-               return PlayerCommandStatus.Disconnected; // Disconnected 
+               return PlayerCommandStatus.Disconnected; // this is more likely to actually indicate the the bot hasnt connected for the first time yet
           }
 
-          _PlayerStateData.CurrentPlayerTask = StartPlayer(_VoiceStateManager.ConnectedVoiceChannel);
+          _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannel);
           await _PlayerStateData.CurrentPlayerTask;
 
           return PlayerCommandStatus.Ok; // OK
      }
 
+     // should be called with the state lock acquired
      private void InterruptPlayer() {
           _PlayerStateData.InterruptSource.Cancel();
           _PlayerStateData.InterruptSource = new();
      }
 
+     // should be called with the state lock acquired
      private async Task<bool> TryPopQueue() {
           var Log = async (string str) => await Logger.LogAsync("[Debug/TryPopQueue] " + str);
+
           MP3Entry? entry;
           if ((entry = await SongQueue.TryDequeue()) == null) return false;
 
+          // preloaded again if the entry wasnt already preloaded
           if (entry.FFMPEG == null) {
                await Log("Current Entry wasn't preloaded??? Attempting another load");
                entry.FFMPEG = await new FFMPEGHandler().TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
-               if (entry.FFMPEG == null) return false;
+               if (entry.FFMPEG == null) return false; // if the preload doesnt work again
           }
 
           _PlayerStateData.CurrentEntry = entry;
@@ -156,44 +173,42 @@ public class MP3Handler {
           return true;
      }
 
-     // public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel) {
-     //      await _PlayerStateData.StateLock.WaitAsync();
-     //      if (!await TryPopQueue()) return PlayerCommandStatus.EmptyQueue; // Empty Queue
-
-     //      InterruptPlayer();
-     //      await StartPlayer(targetChannnel);
-     //      return PlayerCommandStatus.Ok;
-     // }
-
-     // It is ASSUMED that the StateLock is Already acquired BEFORE a call to the StartPlayer function
+     // state lock should already be acquired on call
      private async Task StartPlayer(IVoiceChannel targetChannnel) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/StartPlayer] " + str);
+
+          // return if failed to get AudioClient
           IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel, OnDisconnectAsync);
-          if (AudioClient == null) return;
+          if (AudioClient == null) {
+               await Log("failed to acquire AudioClient, exiting Player");
+               return;
+          }
 
           do {
                Process? FFMPEG = _PlayerStateData.CurrentEntry?.FFMPEG;
                if (FFMPEG == null) {
-                    await Log("_PlayerStateData.CurrentFFMPEGSource is null, stoppping");
+                    await Log("_PlayerStateData.CurrentEntry?.FFMPEG is null, exiting Player");
                     return;
                }
                _PlayerStateData.CurrentState = PlayerState.Playing;
                _PlayerStateData.StateLock.Release();
 
-               Stream input = FFMPEG.StandardOutput.BaseStream;
-               using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) { // consider putting a try catch for the CreatePCMStream
+               // main player time spent
+               using (Stream input = FFMPEG.StandardOutput.BaseStream)
+               using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
                          await CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
-                         // await input.CopyToAsync(output, _PlayerStateData.InterruptSource.Token);
                          await output.FlushAsync();
                          FFMPEG.Kill();
-                    } catch (OperationCanceledException) {
+                    } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
                          _PlayerStateData.CurrentState = PlayerState.Paused;
                          return;
                     } catch (Exception e) {
                          await Log("generic exception: " + e.Message);
                     }
-               }; // point of potential Error
+               };
+               // reaches here when song is finished or there is a read failure (CopyToAsync returns immediately on ReadFailure)
+
                await _PlayerStateData.StateLock.WaitAsync();
           } while (await TryPopQueue());
 
@@ -207,31 +222,33 @@ public class MP3Handler {
      }
 
      private async Task OnDisconnectAsync(Exception e) {
-          // if i want all disconnects to make state idle, i can use the state lock and await the current player task and set state to idle
-          // awaiting the current player should make this ensure current state
           await Logger.LogAsync("[Debug/MP3Handler/OnDisconnectAsync] Triggered");
-          // await _PlayerStateData.StateLock.WaitAsync();
-          // switch (_PlayerStateData.CurrentState) {
-          //      case PlayerState.Paused:
-
-          //           break;
-          // }
-          // if ( == PlayerState.Paused)
-          // _PlayerStateData.StateLock.Release();
      }
 
      public async Task<MP3Entry?> NowPlaying() {
           await _PlayerStateData.StateLock.WaitAsync();
+
+          // check if the player is paused or playing
           if (_PlayerStateData.CurrentState != PlayerState.Paused && _PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
                return null;
           }
           MP3Entry? entry = _PlayerStateData.CurrentEntry;
+          if (entry == null) {
+               _PlayerStateData.StateLock.Release();
+               return null;
+          }
+
+          // make a copy of the entry to avoid reflecting changes during other state changes
+          MP3Entry copy = new MP3Entry(entry.VideoID, entry.FFMPEG, entry.VideoData);
+
           _PlayerStateData.StateLock.Release();
 
-          return entry;
+          return copy;
      }
 
+     // returns the number of seconds (based on calculation from the byte stream) of data that have been copied out to discord from the source
+     // returns -1 on error
      public async Task<long> NowPlayingProgress() {
           var Log = async (string str) => await Logger.LogAsync("[Debug/NowPlayingProgress] " + str);
           long BufferIndex = -1;
@@ -242,10 +259,8 @@ public class MP3Handler {
                return BufferIndex;
           }
           BufferIndex = Interlocked.Read(ref _PlayerStateData.totalBytesWritten);
+
           _PlayerStateData.StateLock.Release();
-
-          await Log("Index: " + BufferIndex);
-
           return BufferIndex / (48000 * 2 * 2); // bit rate * # channels * bit depth in bytes
      }
 
@@ -253,27 +268,23 @@ public class MP3Handler {
           byte[] buffer = new byte[16];
 
           while (true) {
+               // read failures mean immediate exit
                try {
-                    await inputStream.ReadExactlyAsync(buffer, 0, 16, token);
-               } catch (OperationCanceledException e) {
-                    await Logger.LogAsync("READ ERROR: " + e.Message);
-               //      throw new OperationCanceledException();
-                    return;
+                    await inputStream.ReadExactlyAsync(buffer, 0, 16); // no cancellation token here since using one could desync the totalBytesWritten count
                } catch (Exception e) {
-                    await Logger.LogAsync("read fail: " + e.Message);
-               //      throw new OperationCanceledException(token);
+                    await Logger.LogAsync("UNEXPECTED READ FAIL: " + e.Message);
                     return;
                }
 
                Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
-
+               // write errors mean OperationCanceledException
                try {
                     await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
                } catch (OperationCanceledException e) {
-                    await Logger.LogAsync("WRITE ERROR: " + e.Message);
+                    await Logger.LogAsync("write canceled: " + e.Message);
                     throw new OperationCanceledException();
                } catch (Exception e) {
-                    await Logger.LogAsync("write fail: " + e.Message);
+                    await Logger.LogAsync("UNEXPECTED WRITE FAIL: " + e.Message);
                     throw new OperationCanceledException(token);
                }
           }
@@ -281,17 +292,13 @@ public class MP3Handler {
 
      public async Task<PlayerCommandStatus> ToggleLooping() {
           await _PlayerStateData.StateLock.WaitAsync();
-          if (_PlayerStateData.CurrentState != PlayerState.Playing && _PlayerStateData.CurrentState != PlayerState.Paused) {
-               _PlayerStateData.StateLock.Release();
-               return PlayerCommandStatus.NotCurrentlyPlaying;
-          }
 
-          if (SongQueue.Looping) {
+          if (SongQueue.Looping) { // turn off if on
                await SongQueue.DisableLooping();
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.Ok; // not looping
           }
-          else if (_PlayerStateData.CurrentEntry != null) {
+          else if (_PlayerStateData.CurrentEntry != null) { // make sure there is an entry to loop
                await SongQueue.EnableLooping(_PlayerStateData.CurrentEntry);
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.Ok2; // looping
@@ -303,7 +310,7 @@ public class MP3Handler {
 
      private class MP3Queue {
           public int Count { get => SongQueue.Count; }
-          private PlayerStateData _PlayerStateData;
+          // private PlayerStateData _PlayerStateData;
           private ConcurrentQueue<MP3Entry> SongQueue;
           private FFMPEGHandler _FFMPEGHandler;
           private SemaphoreSlim sem;
@@ -313,7 +320,7 @@ public class MP3Handler {
           ILogger Logger;
 
           public MP3Queue(PlayerStateData playerStateData, ILogger? logger = null) {
-               _PlayerStateData = playerStateData;
+               // _PlayerStateData = playerStateData;
                SongQueue = new();
                sem = new(1, 1);
                Logger = logger ?? new DefaultLogger();
@@ -330,6 +337,7 @@ public class MP3Handler {
           public void Clear() {
                sem.Wait();
 
+               // kill preloaded audio if there is any
                MP3Entry? entry;
                if  (SongQueue.TryPeek(out entry) && entry?.FFMPEG != null) {
                     try {
@@ -344,7 +352,7 @@ public class MP3Handler {
           public async Task Enqueue(MP3Entry entry) {
                sem.Wait();
                SongQueue.Enqueue(entry);
-               await TryPreloadNext();
+               await Logger.LogAsync($"Is the queue currently preloaded?: {await TryPreloadNext()}");
                sem.Release();
           }
 
@@ -352,12 +360,15 @@ public class MP3Handler {
                sem.Wait();
                MP3Entry? entry;
 
+               // if looping, return the current looping entry and prepare a new looping entry
                if (Looping && LoopingEntry != null) {
                     entry = LoopingEntry;
                     LoopingEntry = new MP3Entry(entry.VideoID, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f));
                     sem.Release();
                     return entry;
                }
+
+               // return the top entry and preload the next one
                if (SongQueue.TryDequeue(out entry)) {
                     SongQueueNextPreloaded = false;
                     await TryPreloadNext();
@@ -365,6 +376,8 @@ public class MP3Handler {
                     return entry;
                }
                sem.Release();
+
+               // null when queue is empty
                return null;
           }
 
@@ -382,21 +395,15 @@ public class MP3Handler {
                return false;
           }
 
-          // finish this function
-          // private async Task<bool> TryPreloadLoop() {
-          //      await sem.WaitAsync();
-
-          //      sem.Release();
-          //      return true;
-          // }
-
           public async Task EnableLooping(MP3Entry entry) {
                await sem.WaitAsync();
+
+               // return if already looping
                if (Looping) {
                     sem.Release();
                     return;
                }
-               LoopingEntry = new MP3Entry(entry.VideoID, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+               LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
 
                Looping = true;
                sem.Release();
@@ -404,14 +411,13 @@ public class MP3Handler {
 
           public async Task DisableLooping() {
                await sem.WaitAsync();
+
+               // return if already not looping
                if (!Looping) {
                     sem.Release();
                     return;
                }
-               try {
-                    if (LoopingEntry?.FFMPEG != null) LoopingEntry.FFMPEG.Kill();
-               } catch {}
-               LoopingEntry = null;
+
                Looping = false;
                sem.Release();
           }
