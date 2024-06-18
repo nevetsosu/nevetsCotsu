@@ -33,21 +33,24 @@ public class YTAPIManager {
           Match match = Regex.Match(PTTime, "^PT(?:(?<hours>[0-9]+)H)?(?:(?<minutes>[0-9]+)M)?(?:(?<seconds>[0-9]+)S)?$");
           if (!match.Success) throw new ArgumentException();
 
-          string hours, minutes, seconds;
-          string timestamp = "";
+          string hoursStr = match.Groups["hours"].Value;
+          string minutesStr = match.Groups["minutes"].Value;
+          string secondsStr = match.Groups["seconds"].Value;
 
-          hours = match.Groups["hours"].Value;
-          minutes = match.Groups["minutes"].Value;
-          seconds = match.Groups["seconds"].Value;
+          int hours, minutes, seconds;
+          if (hoursStr == null || !int.TryParse(hoursStr, out hours)) hours = 0;
+          if (minutesStr == null || !int.TryParse(minutesStr, out minutes)) minutes = 0;
+          if (secondsStr == null || !int.TryParse(secondsStr, out seconds)) seconds = 0;
 
           // minutes are formated differently depending on if there are hours
-          if (!string.IsNullOrEmpty(hours)) {
-               timestamp += $"{hours}:";
-               timestamp += !string.IsNullOrEmpty(minutes) ? $"{minutes:00}:" : "00:";
-          } else timestamp += !string.IsNullOrEmpty(minutes) ? $"{minutes:0}:" : "0:";
+          string timestamp = "";
+          if (hours > 0) {
+               timestamp += $"{hoursStr}:";
+               timestamp += $"{minutes:00}:";
+          } else timestamp += $"{minutes:0}:";
 
           // seconds are always presented with the same formatting
-          if (!string.IsNullOrEmpty(seconds)) timestamp += $"{seconds:00}";
+          timestamp += $"{seconds:00}";
 
           return timestamp;
      }
