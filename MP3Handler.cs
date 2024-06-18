@@ -88,7 +88,7 @@ public class MP3Handler {
           return PlayerCommandStatus.Ok;
      }
 
-     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel, MP3Entry? entry = null) {
+     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannel, MP3Entry? entry = null) {
           await _PlayerStateData.StateLock.WaitAsync();
 
           // queue as long as the VideoID is not null
@@ -113,8 +113,7 @@ public class MP3Handler {
           await _PlayerStateData.CurrentPlayerTask;
 
           // play
-          _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannnel);
-          _ = Task.Run(() => _PlayerStateData.CurrentPlayerTask);
+          _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel));
 
           return PlayerCommandStatus.Ok; // this return is not given back fast until the player stops
      }
@@ -142,9 +141,8 @@ public class MP3Handler {
                return PlayerCommandStatus.Disconnected; // this is more likely to actually indicate the the bot hasnt connected for the first time yet
           }
 
-          _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannel);
-          _ = Task.Run(() => _PlayerStateData.CurrentPlayerTask);
-
+          _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel));
+          
           return PlayerCommandStatus.Ok; // OK
      }
 
