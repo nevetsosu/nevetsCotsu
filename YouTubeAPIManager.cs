@@ -2,10 +2,10 @@ using Google.Apis.Services;
 using Google.Apis.YouTube.v3.Data;
 using Google.Apis.YouTube.v3;
 using System.Text.RegularExpressions;
-public class YouTubeAPIManager {
+public class YTAPIManager {
      private YouTubeService YTService;
      private ILogger Logger;
-     public YouTubeAPIManager(string apiKey, string applicationName, ILogger? logger = null) {
+     public YTAPIManager(string apiKey, string applicationName, ILogger? logger = null) {
           Logger = logger ?? new DefaultLogger();
           YTService = new YouTubeService(new BaseClientService.Initializer() {
                ApiKey = apiKey,
@@ -28,6 +28,8 @@ public class YouTubeAPIManager {
 
      public static string PTtoNormalTimeStamp(string PTTime) {
           new DefaultLogger().LogAsync("PTtoNormalTimeStamp processing string: " + PTTime);
+
+          // break down the string into hours minutes and seconds
           Match match = Regex.Match(PTTime, "^PT(?:(?<hours>[0-9]+)H)?(?:(?<minutes>[0-9]+)M)?(?:(?<seconds>[0-9]+)S)?$");
           if (!match.Success) throw new ArgumentException();
 
@@ -38,17 +40,20 @@ public class YouTubeAPIManager {
           minutes = match.Groups["minutes"].Value;
           seconds = match.Groups["seconds"].Value;
 
+          // minutes are formated differently depending on if there are hours
           if (!string.IsNullOrEmpty(hours)) {
                timestamp += $"{hours}:";
                timestamp += !string.IsNullOrEmpty(minutes) ? $"{minutes:00}:" : "00:";
           } else timestamp += !string.IsNullOrEmpty(minutes) ? $"{minutes:0}:" : "0:";
 
+          // seconds are always presented with the same formatting
           if (!string.IsNullOrEmpty(seconds)) timestamp += $"{seconds:00}";
 
           return timestamp;
      }
 
-     public static string VideoURLFromVideoID(string VideoID) {
+     // this isnt really used since its so long
+     public static string IDToURL(string VideoID) {
           return @"https://www.youtube.com/v/" + VideoID;
      }
 }

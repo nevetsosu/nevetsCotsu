@@ -9,9 +9,9 @@ using System.Text;
 public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> {
      private ILogger Logger;
      private ConcurrentDictionary<ulong, GuildData> GuildDataDict;
-     private YouTubeAPIManager YTAPIManager;
+     private YTAPIManager YTAPIManager;
 
-     public MP3CommandModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, YouTubeAPIManager ytAPIManager, ILogger? logger = null) {
+     public MP3CommandModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, YTAPIManager ytAPIManager, ILogger? logger = null) {
           GuildDataDict = guildDataDict;
           Logger = logger ?? new DefaultLogger();
           YTAPIManager = ytAPIManager;
@@ -173,7 +173,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           if (data.VideoData?.ContentDetails.Duration != null) {
                try {
-                    timestamp += $"/{YouTubeAPIManager.PTtoNormalTimeStamp(data.VideoData.ContentDetails.Duration)}";
+                    timestamp += $"/{YTAPIManager.PTtoNormalTimeStamp(data.VideoData.ContentDetails.Duration)}";
                } catch (Exception e) {
                     await Logger.LogAsync("failed to get normal timestamp: " + e.Message);
                }
@@ -184,7 +184,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           List<MP3Handler.MP3Entry> QueueEntries = guildData._MP3Handler.GetQueueAsList();
           for (int i = 0; i < QueueEntries.Count; i++) {
                MP3Handler.MP3Entry entry = QueueEntries[i];
-               if (entry.VideoData != null) strBuilder.AppendLine($"``{i + 1}.``[{entry.VideoData.Snippet.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})``{YouTubeAPIManager.PTtoNormalTimeStamp(entry.VideoData.ContentDetails.Duration)}``");
+               if (entry.VideoData != null) strBuilder.AppendLine($"``{i + 1}.``[{entry.VideoData.Snippet.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})``{YTAPIManager.PTtoNormalTimeStamp(entry.VideoData.ContentDetails.Duration)}``");
                else strBuilder.AppendLine("``{i}.``Couldn't get song data");
           }
 
@@ -218,7 +218,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           if (data.VideoData?.ContentDetails.Duration != null) {
                try {
-                    timestamp += $"/{YouTubeAPIManager.PTtoNormalTimeStamp(data.VideoData.ContentDetails.Duration)}";
+                    timestamp += $"/{YTAPIManager.PTtoNormalTimeStamp(data.VideoData.ContentDetails.Duration)}";
                } catch (Exception e) {
                     await Logger.LogAsync("failed to get normal timestamp: " + e.Message);
                }
