@@ -17,7 +17,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           YTAPIManager = ytAPIManager;
      }
 
-     [SlashCommand("play", "Start the mp3 player or add song to queue.")]
+     [SlashCommand("play", "Start the mp3 player or add song to queue.", runMode : RunMode.Async)]
      public async Task Play(string? song = null) {
           IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
@@ -80,7 +80,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      //      guildData._MP3Handler.AddQueue(new MP3Handler.MP3Entry(URL));
      // }
 
-     [SlashCommand("skip", "skip the current song")]
+     [SlashCommand("skip", "skip the current song", runMode : RunMode.Async)]
      public async Task SkipSong() {
           IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
@@ -108,7 +108,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           }
      }
 
-     [SlashCommand("resume", "resumes a previously loaded song")]
+     [SlashCommand("resume", "resumes a previously loaded song", runMode : RunMode.Async)]
      public async Task ResumeSong() {
           IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
