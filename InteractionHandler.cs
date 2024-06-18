@@ -35,11 +35,11 @@ public class InteractionHandler {
      private readonly ILogger Logger;
      private readonly ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider, ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger logger) {
+     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider, ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger? logger = null) {
           Client = client;
           Handler = handler;
           ServiceProvider = serviceprovider;
-          Logger = logger;
+          Logger = logger ?? new DefaultLogger();
           GuildDataDict = guildDataDict;
      }
 

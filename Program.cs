@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using DotNetEnv;
+using Google.Apis.Services;
 
 class Program {
      private static IServiceProvider? ServiceProvider;
@@ -34,11 +35,24 @@ class Program {
                return;
           }
 
+          string? YOUTUBE_API_KEY = Environment.GetEnvironmentVariable("YOUTUBE_API_KEY");
+          if (string.IsNullOrEmpty(YOUTUBE_API_KEY)) {
+               Console.Error.WriteLine("[FATAL] Failed to acquire YOUTUBE_API_KEY as an environment variable");
+               return;
+          }
+
+          string? YOUTUBE_PROJECT_NAME = Environment.GetEnvironmentVariable("YOUTUBE_PROJECT_NAME");
+          if (string.IsNullOrEmpty(YOUTUBE_PROJECT_NAME)) {
+               Console.Error.WriteLine("[FATAL] Failed to acquire YOUTUBE_PROJECT_NAME as an environment variable");
+               return;
+          }
+
           ServiceProvider = new ServiceCollection()
                .AddSingleton<DiscordSocketClient>(_ => new DiscordSocketClient(SocketConfig))
                // .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
                // .AddSingleton<ILogger, ComboLogger>()
                .AddSingleton<ILogger, DefaultLogger>()
+               .AddSingleton<YouTubeAPIManager>(x => new YouTubeAPIManager(YOUTUBE_API_KEY, YOUTUBE_PROJECT_NAME))
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
                .AddSingleton<InteractionHandler>()
                .AddSingleton<ConcurrentDictionary<ulong, GuildData>>()

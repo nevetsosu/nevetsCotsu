@@ -57,14 +57,14 @@ public class FFMPEGHandler {
           return Process.Start(startInfo);
      }
 
-     public async Task<Process?> TrySpawnYoutubeFFMPEG(string URL, string? outFilePath, float baseVolume = 1.0f) {
+     public async Task<Process?> TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/TrySpawnYoutubeFFMPEG] " + str);
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "/bin/bash",
                UseShellExecute = false,
                CreateNoWindow = true,
           };
-
+          string URL = @"https://www.youtube.com/v/" + VideoID;
           string outSource;
           // use standard out if inFilePath is null
           if (outFilePath == null) {

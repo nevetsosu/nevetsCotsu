@@ -2,16 +2,9 @@ using Discord;
 using Discord.Audio;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using Google.Apis.YouTube.v3.Data;
 
 public class MP3Handler {
-
-     public struct SongData {
-          public string URL;
-          public SongData(string url) {
-               URL = url;
-          }
-     }
-
      public enum PlayerCommandStatus {
           EmptyQueue, Already, Ok, Ok2, Disconnected, InvalidArgument, NotCurrentlyPlaying
      }
@@ -37,12 +30,13 @@ public class MP3Handler {
      }
 
      public class MP3Entry{
-          public string URL;
+          public string VideoID;
           public Process? FFMPEG;
-
-          public MP3Entry(string url, Process? ffmpeg = null) {
-               URL = url;
+          public Video? VideoData;
+          public MP3Entry(string videoID, Process? ffmpeg = null, Video? videoData = null) {
+               VideoID = videoID;
                FFMPEG = ffmpeg;
+               VideoData = videoData ?? null;
           }
     }
 
@@ -90,10 +84,10 @@ public class MP3Handler {
           return PlayerCommandStatus.Ok; // return OK
      }
 
-     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel, string? song = null) {
+     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannnel, MP3Entry? entry = null) {
           await _PlayerStateData.StateLock.WaitAsync();
-          if (!string.IsNullOrEmpty(song)) {
-               await Enqueue(new MP3Entry(song));
+          if (!string.IsNullOrEmpty(entry?.VideoID)) {
+               await Enqueue(entry);
           }
 
           if (_PlayerStateData.CurrentState == PlayerState.Playing) {
@@ -153,7 +147,7 @@ public class MP3Handler {
 
           if (entry.FFMPEG == null) {
                await Log("Current Entry wasn't preloaded??? Attempting another load");
-               entry.FFMPEG = await new FFMPEGHandler().TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f);
+               entry.FFMPEG = await new FFMPEGHandler().TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
                if (entry.FFMPEG == null) return false;
           }
 
@@ -226,7 +220,7 @@ public class MP3Handler {
           // _PlayerStateData.StateLock.Release();
      }
 
-     public async Task<SongData?> NowPlaying() {
+     public async Task<MP3Entry?> NowPlaying() {
           await _PlayerStateData.StateLock.WaitAsync();
           if (_PlayerStateData.CurrentState != PlayerState.Paused && _PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
@@ -235,7 +229,7 @@ public class MP3Handler {
           MP3Entry? entry = _PlayerStateData.CurrentEntry;
           _PlayerStateData.StateLock.Release();
 
-          return entry != null ? new SongData(entry.URL) : null;
+          return entry;
      }
 
      public async Task<long> NowPlayingProgress() {
@@ -356,19 +350,19 @@ public class MP3Handler {
 
           public async Task<MP3Entry?> TryDequeue() {
                sem.Wait();
-               MP3Entry? e;
+               MP3Entry? entry;
 
                if (Looping && LoopingEntry != null) {
-                    e = LoopingEntry;
-                    LoopingEntry = new MP3Entry(e.URL, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(e.URL, null, 1.0f));
+                    entry = LoopingEntry;
+                    LoopingEntry = new MP3Entry(entry.VideoID, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f));
                     sem.Release();
-                    return e;
+                    return entry;
                }
-               if (SongQueue.TryDequeue(out e)) {
+               if (SongQueue.TryDequeue(out entry)) {
                     SongQueueNextPreloaded = false;
                     await TryPreloadNext();
                     sem.Release();
-                    return e;
+                    return entry;
                }
                sem.Release();
                return null;
@@ -378,9 +372,9 @@ public class MP3Handler {
           // assumes that the sem is already acquired
           private async Task<bool> TryPreloadNext() {
                if (SongQueueNextPreloaded) return true;
-               MP3Entry? e;
-               if (SongQueue.TryPeek(out e)) {
-                    e.FFMPEG = await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(e.URL, null, 1.0f);
+               MP3Entry? entry;
+               if (SongQueue.TryPeek(out entry)) {
+                    entry.FFMPEG = await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
                     SongQueueNextPreloaded = true;
                     return true;
                }
@@ -402,7 +396,7 @@ public class MP3Handler {
                     sem.Release();
                     return;
                }
-               LoopingEntry = new MP3Entry(entry.URL, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.URL, null, 1.0f));
+               LoopingEntry = new MP3Entry(entry.VideoID, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
 
                Looping = true;
                sem.Release();
