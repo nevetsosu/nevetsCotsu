@@ -1,8 +1,10 @@
 Next steps:
-     Add the ability to accept search queries
+     Improve the current command responses
+
+     Rework the Queue to be a Circular Buffer
+     move command
+     skipto command
+
 
 For Later:
-Improve the Queue Command
-
-Rework the CopyAsync Command to differentiate from read fails(ffmpeg failed), cancels (interrupt), and write fails (force disconnnnect)
 Rework the multi audio stream muxing ? A single entity that routes the audio streams
