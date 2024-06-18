@@ -14,7 +14,7 @@ public class YTAPIManager {
      }
 
      public async Task<Video?> GetVideoData(string videoID) {
-          VideosResource.ListRequest? VideoRequest = YTService?.Videos.List("snippet, contentDetails, statistics");
+          VideosResource.ListRequest? VideoRequest = YTService?.Videos.List("snippet, contentDetails");
           if (VideoRequest == null) return null;
           VideoRequest.Id = videoID;
 
@@ -58,5 +58,27 @@ public class YTAPIManager {
      // this isnt really used since its so long
      public static string IDToURL(string VideoID) {
           return @"https://www.youtube.com/v/" + VideoID;
+     }
+
+     // returns a Video ID of a valid video or null
+     public async Task<string?> SearchForVideo(string query) {
+          SearchResource.ListRequest? SearchRequest = YTService?.Search.List("snippet");
+          if (SearchRequest == null) return null;
+
+          SearchRequest.Q = query;
+          SearchRequest.MaxResults = 5;
+
+          SearchListResponse SearchResponse = await SearchRequest.ExecuteAsync();
+          string? VideoID = null;
+
+          for (int i = 0; i < SearchResponse.Items.Count; i++) {
+               SearchResult result = SearchResponse.Items[i];
+               if (result.Id.Kind == "youtube#video") {
+                    VideoID = result.Id.VideoId;
+                    break;
+               }
+          }
+          if (VideoID == null) return null;
+          return VideoID;
      }
 }

@@ -112,11 +112,11 @@ public class MP3Handler {
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
 
-          // play 
+          // play
           _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannnel);
-          await _PlayerStateData.CurrentPlayerTask;
+          _ = Task.Run(() => _PlayerStateData.CurrentPlayerTask);
 
-          return PlayerCommandStatus.Ok;
+          return PlayerCommandStatus.Ok; // this return is not given back fast until the player stops
      }
 
      public async Task<PlayerCommandStatus> SkipSong() {
@@ -143,7 +143,7 @@ public class MP3Handler {
           }
 
           _PlayerStateData.CurrentPlayerTask = StartPlayer(targetChannel);
-          await _PlayerStateData.CurrentPlayerTask;
+          _ = Task.Run(() => _PlayerStateData.CurrentPlayerTask);
 
           return PlayerCommandStatus.Ok; // OK
      }
