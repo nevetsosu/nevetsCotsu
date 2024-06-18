@@ -14,18 +14,19 @@ public class VoiceStateManager {
           Logger = logger;
      }
 
-     // returns current
      public async Task<IAudioClient?> ConnectAsync(IVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/ConnectAsync] " + str);
           await Log("Starting ConnectAsync");
 
           await Lock.WaitAsync();
+
+          // return the current AudioClient if already connected on the channel
           if (AudioClient != null && AudioClient.ConnectionState == ConnectionState.Connected && ConnectedVoiceChannel == targetVoiceChannel) {
                Lock.Release();
                return AudioClient;
           }
 
-          // Try Discord.Net IVoiceChannel.ConnectAsync
+          // try to open a new voice connection
           IAudioClient? newAudioClient;
           try {
                await Log("here 2");
@@ -37,6 +38,7 @@ public class VoiceStateManager {
                return null;
           }
 
+          // update state
           if (newAudioClient != null) {
                AudioClient = newAudioClient;
                ConnectedVoiceChannel = targetVoiceChannel;
@@ -47,6 +49,7 @@ public class VoiceStateManager {
                AudioClient = null;
                ConnectedVoiceChannel = null;
           }
+
           Lock.Release();
 
           return AudioClient;
@@ -59,38 +62,41 @@ public class VoiceStateManager {
                     await voiceChannel.DisconnectAsync();
                } catch {}
           }
-
-          AudioClient = null;
-          ConnectedVoiceChannel = null;
+          ResetState();
 
           Lock.Release();
      }
 
-     public void ResetState() {
+     // this should only be called when the StateLock is already acquired
+     private void ResetState() {
           AudioClient = null;
           ConnectedVoiceChannel = null;
      }
 
+     // call back for when the bot disconnects
      public async Task OnDisconnectedAsync(Exception e) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/OnDisconnectedAsync] " + str);
           await Log("reset voice state: " + e.Message);
+
           await Lock.WaitAsync();
           ResetState();
           Lock.Release();
      }
 
+     // call back for when memebers of the same voice channel disconnect
      public async Task OnClientDisconnectAsync(ulong id) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/OnClientDisconnectAsync] " + str);
           await Log("ClientDisconnected: id " + id);
           await Lock.WaitAsync();
-          if (AudioClient != null) {
+
+          // leave when the bot is the only one in the channnel
+          if (AudioClient != null && ConnectedVoiceChannel != null && await ConnectedVoiceChannel.GetUsersAsync().CountAsync() < 1) {
                try {
                     await AudioClient.StopAsync();
                } catch {}
           }
 
-          AudioClient = null;
-          ConnectedVoiceChannel = null;
+          ResetState();
 
           Lock.Release();
      }
