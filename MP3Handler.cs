@@ -36,7 +36,7 @@ public class MP3Handler {
           public MP3Entry(string videoID, Process? ffmpeg = null, Video? videoData = null) {
                VideoID = videoID;
                FFMPEG = ffmpeg;
-               VideoData = videoData ?? null;
+               VideoData = videoData;
           }
     }
 
@@ -142,7 +142,7 @@ public class MP3Handler {
           }
 
           _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel));
-          
+
           return PlayerCommandStatus.Ok; // OK
      }
 
