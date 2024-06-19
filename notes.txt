@@ -8,6 +8,8 @@ Next steps:
      move command
      skipto command
 
+     lyrics command (requires new API)
+
 
 For Later:
 Rework the multi audio stream muxing ? A single entity that routes the audio streams
