@@ -2,6 +2,7 @@ using Google.Apis.Services;
 using Google.Apis.YouTube.v3.Data;
 using Google.Apis.YouTube.v3;
 using System.Text.RegularExpressions;
+using System.Collections.Immutable;
 public class YTAPIManager {
      private YouTubeService YTService;
      private ILogger Logger;
@@ -31,7 +32,10 @@ public class YTAPIManager {
 
           // break down the string into hours minutes and seconds
           Match match = Regex.Match(PTTime, "^PT(?:(?<hours>[0-9]+)H)?(?:(?<minutes>[0-9]+)M)?(?:(?<seconds>[0-9]+)S)?$");
-          if (!match.Success) throw new ArgumentException();
+          if (!match.Success) {
+               new DefaultLogger().LogAsync($"failed to match timestamp: \"{PTTime}\". returning \"LIVE\"");
+               return "LIVE";
+          }
 
           string hoursStr = match.Groups["hours"].Value;
           string minutesStr = match.Groups["minutes"].Value;
@@ -80,5 +84,26 @@ public class YTAPIManager {
           }
           if (VideoID == null) return null;
           return VideoID;
+     }
+
+     public async Task<ImmutableList<SearchResult>?> YTSearchResults(string query) {
+          SearchResource.ListRequest? SearchRequest = YTService?.Search.List("snippet");
+          if (SearchRequest == null) return null;
+          SearchRequest.Q = query;
+
+          SearchListResponse SearchResponse = await SearchRequest.ExecuteAsync();
+
+          return SearchResponse.Items.ToImmutableList();
+     }
+
+     public string? GetYoutubeID(string url) {
+          const string pattern = @"^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/)|youtu\.be\/)(?<videoId>[A-Za-z0-9_-]{11})(?:[?&].*)?$";
+          Match match = Regex.Match(url, pattern);
+          if (match.Success) {
+               return match.Groups["videoId"].Value;
+          } else {
+               Logger.LogAsync("Invalid URL");
+               return null; // rick roll video ID on failure
+          }
      }
 }

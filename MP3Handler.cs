@@ -9,7 +9,7 @@ public class MP3Handler {
           EmptyQueue, Already, Ok, Ok2, Disconnected, InvalidArgument, NotCurrentlyPlaying
      }
      private enum PlayerState {
-     Paused, Playing, Idle
+          Paused, Playing, Idle
      }
 
      private struct PlayerStateData {
@@ -90,7 +90,6 @@ public class MP3Handler {
 
      public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannel, MP3Entry? entry = null) {
           await _PlayerStateData.StateLock.WaitAsync();
-          await Logger.LogAsync("state: " + _PlayerStateData.CurrentState.ToString());
           // queue as long as the VideoID is not null
           if (!string.IsNullOrEmpty(entry?.VideoID)) {
                await Enqueue(entry);
@@ -112,7 +111,6 @@ public class MP3Handler {
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
 
-          await Logger.LogAsync("state2: " + _PlayerStateData.CurrentState.ToString());
           // play
           _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel));
 

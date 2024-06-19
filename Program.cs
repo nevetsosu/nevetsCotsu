@@ -51,6 +51,7 @@ class Program {
                // .AddSingleton<ILogger, ComboLogger>()
                .AddSingleton<ILogger, DefaultLogger>()
                .AddSingleton<YTAPIManager>(x => new YTAPIManager(YOUTUBE_API_KEY, YOUTUBE_PROJECT_NAME))
+               .AddSingleton<YTSearchAutocomplete>()
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
                .AddSingleton<InteractionHandler>()
                .AddSingleton<ConcurrentDictionary<ulong, GuildData>>()

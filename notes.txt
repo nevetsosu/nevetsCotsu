@@ -1,6 +1,4 @@
 Next steps:
-     Improve the current command responses
-
      make a search command (practice with autocomplete)
 
      Rework the Queue to be a Circular Buffer
@@ -12,4 +10,5 @@ Next steps:
 
 
 For Later:
+description command
 Rework the multi audio stream muxing ? A single entity that routes the audio streams

@@ -1,48 +1,66 @@
 using Discord;
 using Discord.Interactions;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
-using Google.Apis.YouTube.v3;
 using System.Text;
 
 public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> {
      private ILogger Logger;
      private ConcurrentDictionary<ulong, GuildData> GuildDataDict;
-     private YTAPIManager YTAPIManager;
+     private YTAPIManager ytAPIManager;
 
      public MP3CommandModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, YTAPIManager ytAPIManager, ILogger? logger = null) {
           GuildDataDict = guildDataDict;
           Logger = logger ?? new DefaultLogger();
-          YTAPIManager = ytAPIManager;
+          this.ytAPIManager = ytAPIManager;
      }
 
      [SlashCommand("play", "Start the mp3 player or add song to queue.", runMode : RunMode.Async)]
-     public async Task Play(string? song = null) {
+     public async Task Play([Autocomplete(typeof(YTSearchAutocomplete))] string? song = null) {
+          var Log = async (string str) => await Logger.LogAsync("[PlaySlashCommand] " + str);
           IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
           }
 
-          // link validity check
-          string? YoutubeID = "dQw4w9WgXcQ";
-          if (song == null) {
+          await Log($"playing with song: {song ?? "null"}. EMPTY?: {string.IsNullOrEmpty(song)}");
+
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+
+          if (string.IsNullOrEmpty(song)) { // no song
                await RespondAsync("trying player...");
-          } else if (!string.IsNullOrEmpty(YoutubeID = GetYoutubeID(song))) {
-               await RespondAsync("addinng to queue...");
-          } else if (!string.IsNullOrEmpty(YoutubeID = await YTAPIManager.SearchForVideo(song))) {
-               await Logger.LogAsync("[Debug/Play] invalid link...searching...");
+               switch (await guildData._MP3Handler.TryPlay(targetChannel)) {
+                    case MP3Handler.PlayerCommandStatus.EmptyQueue:
+                         await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
+                         break;
+                    case MP3Handler.PlayerCommandStatus.Already:
+                         await ModifyOriginalResponseAsync((m) => m.Content = $"already playing");
+                         break;
+                    default:
+                         break;
+               }
+               return;
+          }
+
+          string? YoutubeID;
+          // link validity check or YT search
+          if (!string.IsNullOrEmpty(YoutubeID = ytAPIManager.GetYoutubeID(song))) {
+               await Log("youtube url identified, YTID: " + YoutubeID);
+               await RespondAsync("adding to queue...");
+          } else if (!string.IsNullOrEmpty(YoutubeID = await ytAPIManager.SearchForVideo(song))) {
+               await Log("[Debug/Play] searched youtube successfully with YTID: " + YoutubeID);
                await RespondAsync("searching youtube...");
           } else {
+               await Log("defaulted to rick roll");
                await RespondAsync("defaulting to rick roll");
                YoutubeID = "dQw4w9WgXcQ";
           }
-
-          Video? VideoData = await YTAPIManager.GetVideoData(YoutubeID);
+          Video? VideoData = await ytAPIManager.GetVideoData(YoutubeID);
 
           // check if it is a URL, other wise look it up on Youtube
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
           switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Handler.MP3Entry(YoutubeID, null, VideoData))) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
@@ -57,17 +75,6 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                     break;
           }
 
-     }
-
-     private string? GetYoutubeID(string url) {
-          const string pattern = @"^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/)|youtu\.be\/)(?<videoId>[A-Za-z0-9_-]{11})(?:[?&].*)?$";
-          Match match = Regex.Match(url, pattern);
-          if (match.Success) {
-               return match.Groups["videoId"].Value;
-          } else {
-               Logger.LogAsync("Invalid URL");
-               return null; // rick roll video ID on failure
-          }
      }
 
      // [SlashCommand("queueadd", "add a song to the queue")]
@@ -91,7 +98,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           if (targetChannel != Context.Guild.CurrentUser.VoiceChannel) {
                await RespondAsync("you are not in the same channel");
-               return; 
+               return;
           }
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
@@ -267,9 +274,42 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      [SlashCommand("testmp3", "test command", runMode : RunMode.Async)]
      public async Task Test() {
           await RespondAsync("working");
-          Video? response = await YTAPIManager.GetVideoData("dQw4w9WgXcQ");
+          Video? response = await ytAPIManager.GetVideoData("dQw4w9WgXcQ");
 
           await ModifyOriginalResponseAsync(m => m.Content = "done");
      }
 
+     // [SlashCommand("search", "search youtube for a song to add to add to the queue")]
+     // public async Task Search([Autocomplete(typeof(YTSearchAutocomplete))] string query) {
+          
+     // }
+
+}
+
+public class YTSearchAutocomplete : AutocompleteHandler {
+     YTAPIManager ytAPIManager;
+     ILogger Logger;
+     public YTSearchAutocomplete(YTAPIManager ytAPIManager, ILogger? logger = null) {
+          Logger = logger ?? new DefaultLogger();
+          this.ytAPIManager = ytAPIManager;
+     }
+     public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction interaction, IParameterInfo paraminfo, IServiceProvider serviceProvider) {
+          return AutocompletionResult.FromSuccess(); // turn off suggestions for now
+
+          ImmutableList<SearchResult>? results;
+          string? UserInput = interaction.Data.Current.Value.ToString();
+          await Logger.LogAsync("autocompleting youtube based on: " + UserInput);
+
+          if (string.IsNullOrEmpty(UserInput) || ytAPIManager.GetYoutubeID(UserInput) != null || (results = await ytAPIManager.YTSearchResults(UserInput)) == null)
+              return AutocompletionResult.FromSuccess();
+
+          List<AutocompleteResult> suggestions = new(results.Count);
+
+         for (int i = 0; i < results.Count; i++) {
+               if (results[i].Id.Kind == "youtube#video")
+                    suggestions.Add(new AutocompleteResult(results[i].Snippet.Title, @"https://www.youtube.com/v/" + results[i].Id.VideoId));
+         }
+
+          return AutocompletionResult.FromSuccess(suggestions);
+     }
 }
