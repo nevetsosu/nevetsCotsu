@@ -90,7 +90,7 @@ public class MP3Handler {
 
      public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannel, MP3Entry? entry = null) {
           await _PlayerStateData.StateLock.WaitAsync();
-
+          await Logger.LogAsync("state: " + _PlayerStateData.CurrentState.ToString());
           // queue as long as the VideoID is not null
           if (!string.IsNullOrEmpty(entry?.VideoID)) {
                await Enqueue(entry);
@@ -112,6 +112,7 @@ public class MP3Handler {
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
 
+          await Logger.LogAsync("state2: " + _PlayerStateData.CurrentState.ToString());
           // play
           _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel));
 
@@ -192,7 +193,7 @@ public class MP3Handler {
                _PlayerStateData.StateLock.Release();
 
                // main player time spent
-               using (Stream input = FFMPEG.StandardOutput.BaseStream)
+               Stream input = FFMPEG.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
                          await CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
@@ -203,6 +204,8 @@ public class MP3Handler {
                          return;
                     } catch (Exception e) {
                          await Log("generic exception: " + e.Message);
+                    } finally {
+                         await Logger.LogAsync("canceled from playing song: " + _PlayerStateData.CurrentEntry?.VideoID);
                     }
                };
                // reaches here when song is finished or there is a read failure (CopyToAsync returns immediately on ReadFailure)
