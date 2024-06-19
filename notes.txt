@@ -1,5 +1,6 @@
 Next steps:
-     make a search command (practice with autocomplete)
+     auto complete in the play command
+     move to a new youtube API library, (the one without quota)
 
      Rework the Queue to be a Circular Buffer
      add in a clear command
