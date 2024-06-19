@@ -27,16 +27,17 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           // link validity check
           string? YoutubeID = "dQw4w9WgXcQ";
-          if (song != null && string.IsNullOrEmpty(YoutubeID = GetYoutubeID(song))) { // normally u would do a lookup instead of saying an error
-               await Logger.LogAsync("[Debug/Play] Invalid song link...trying search");
-               if (string.IsNullOrEmpty(YoutubeID = await YTAPIManager.SearchForVideo(song))) {
-                    await Logger.LogAsync("[Debug/Play] search failed, defaulting to rick roll");
-                    await RespondAsync("defaulting to rick roll");
-                    YoutubeID = "dQw4w9WgXcQ";
-               }
-               await RespondAsync("searching for a song");
+          if (song == null) {
+               await RespondAsync("trying player...");
+          } else if (!string.IsNullOrEmpty(YoutubeID = GetYoutubeID(song))) {
+               await RespondAsync("addinng to queue...");
+          } else if (!string.IsNullOrEmpty(YoutubeID = await YTAPIManager.SearchForVideo(song))) {
+               await Logger.LogAsync("[Debug/Play] invalid link...searching...");
+               await RespondAsync("searching youtube...");
+          } else {
+               await RespondAsync("defaulting to rick roll");
+               YoutubeID = "dQw4w9WgXcQ";
           }
-          else await RespondAsync("playing...");
 
           Video? VideoData = await YTAPIManager.GetVideoData(YoutubeID);
 
