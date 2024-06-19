@@ -29,7 +29,6 @@ public class VoiceStateManager {
           // try to open a new voice connection
           IAudioClient? newAudioClient;
           try {
-               await Log("here 2");
                newAudioClient = await targetVoiceChannel.ConnectAsync();
           } catch (Exception e) {
                ResetState();
@@ -94,9 +93,9 @@ public class VoiceStateManager {
                try {
                     await AudioClient.StopAsync();
                } catch {}
-          }
 
-          ResetState();
+               ResetState();
+          }
 
           Lock.Release();
      }
