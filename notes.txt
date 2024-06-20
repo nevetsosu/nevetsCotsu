@@ -1,8 +1,12 @@
 Next steps:
+     Configure a proper logger (Serilog)
+
      Rework the Queue to be a Circular Buffer
      add in a clear command
      move command
      skipto command
+     remove command
+     info command (information on a queue entry (like who queued it))
 
      lyrics command (requires new API)
 
