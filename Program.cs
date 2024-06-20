@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using DotNetEnv;
+using Serilog;
 
 class Program {
      private static IServiceProvider? ServiceProvider;
@@ -20,16 +21,21 @@ class Program {
      };
 
      public static async Task Main(string[] args) {
+          Log.Logger = new LoggerConfiguration()
+               .MinimumLevel.Debug()
+               .WriteTo.Console()
+               .CreateLogger();
+
           // Check and Set Env variables.
           Env.Load();
           string? DISCORD_TOKEN = Environment.GetEnvironmentVariable("DISCORD_TOKEN");
           if (string.IsNullOrEmpty(DISCORD_TOKEN)) {
-               Console.Error.WriteLine("[FATAL] Failed to acquire DISCORD_TOKEN as an environment variable");
+               Log.Fatal("Failed to acquire DISCORD_TOKEN as an environment variable");
                return;
           }
           string? LOG_WEBHOOK_URL = Environment.GetEnvironmentVariable("LOG_WEBHOOK_URL");
           if (string.IsNullOrEmpty(LOG_WEBHOOK_URL)) {
-               Console.Error.WriteLine("[FATAL] Failed to acquire LOG_WEBHOOK_URL as an environment variable");
+               Log.Fatal("Failed to acquire LOG_WEBHOOK_URL as an environment variable");
                return;
           }
 

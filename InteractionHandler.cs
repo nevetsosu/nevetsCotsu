@@ -5,6 +5,9 @@ using System.Reflection;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 
+using Serilog;
+using Serilog.Events;
+
 public class GuildCommandData {
      public int PlayingLock; // 0 false 1 true
      public int CallCount;
@@ -32,19 +35,17 @@ public class InteractionHandler {
      private readonly DiscordSocketClient Client;
      private readonly InteractionService Handler;
      private readonly IServiceProvider ServiceProvider;
-     private readonly ILogger Logger;
      private readonly ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider, ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger? logger = null) {
+     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider, ConcurrentDictionary<ulong, GuildData> guildDataDict) {
           Client = client;
           Handler = handler;
           ServiceProvider = serviceprovider;
-          Logger = logger ?? new DefaultLogger();
           GuildDataDict = guildDataDict;
      }
 
      public async Task InitializeAsync() {
-          Handler.Log += Logger.LogAsync;
+          Handler.Log += LogAsync;
           Client.Ready += ReadyAsync;
           Client.UserVoiceStateUpdated += VoiceChannelStatusUpdatedAsync;
 
@@ -52,6 +53,22 @@ public class InteractionHandler {
 
           Client.InteractionCreated += InteractionCreatedAsync;
           // Handler.InteractionExecuted += InteractionExecutedAsync;
+     }
+
+     private static async Task LogAsync(LogMessage message)
+{
+     LogEventLevel severity = message.Severity switch
+          {
+               LogSeverity.Critical => LogEventLevel.Fatal,
+               LogSeverity.Error => LogEventLevel.Error,
+               LogSeverity.Warning => LogEventLevel.Warning,
+               LogSeverity.Info => LogEventLevel.Information,
+               LogSeverity.Verbose => LogEventLevel.Verbose,
+               LogSeverity.Debug => LogEventLevel.Debug,
+               _ => LogEventLevel.Information
+          };
+          Log.Write(severity, message.Exception, "[{Source}] {Message}", message.Source, message.Message);
+          await Task.CompletedTask;
      }
 
      private async Task ReadyAsync() {
