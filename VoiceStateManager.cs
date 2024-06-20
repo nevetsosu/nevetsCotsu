@@ -44,10 +44,7 @@ public class VoiceStateManager {
                AudioClient.Disconnected += OnDisconnectedAsync;
                AudioClient.ClientDisconnected += OnClientDisconnectAsync;
                if (OnDisconnectAsync != null) AudioClient.Disconnected += OnDisconnectAsync;
-          } else {
-               AudioClient = null;
-               ConnectedVoiceChannel = null;
-          }
+          } else ResetState();
 
           Lock.Release();
 
@@ -89,7 +86,7 @@ public class VoiceStateManager {
           await Lock.WaitAsync();
 
           // leave when the bot is the only one in the channnel
-          if (AudioClient != null && ConnectedVoiceChannel != null && await ConnectedVoiceChannel.GetUsersAsync().CountAsync() < 1) {
+          if (AudioClient != null && ConnectedVoiceChannel != null && await ConnectedVoiceChannel.GetUsersAsync().CountAsync() == 1) {
                try {
                     await AudioClient.StopAsync();
                } catch {}

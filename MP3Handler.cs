@@ -115,7 +115,7 @@ public class MP3Handler {
           await _PlayerStateData.CurrentPlayerTask;
 
           // play
-          _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel));
+          _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel, _PlayerStateData.InterruptSource.Token));
 
           return PlayerCommandStatus.Ok; // this return is not given back fast until the player stops
      }
@@ -143,7 +143,7 @@ public class MP3Handler {
                return PlayerCommandStatus.Disconnected; // this is more likely to actually indicate the the bot hasnt connected for the first time yet
           }
 
-          _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel));
+          _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel, _PlayerStateData.InterruptSource.Token));
 
           return PlayerCommandStatus.Ok; // OK
      }
@@ -174,7 +174,7 @@ public class MP3Handler {
      }
 
      // state lock should already be acquired on call
-     private async Task StartPlayer(IVoiceChannel targetChannnel) {
+     private async Task StartPlayer(IVoiceChannel targetChannnel, CancellationToken token) {
           var Log = async (string str) => await Logger.LogAsync("[Debug/StartPlayer] " + str);
 
           // return if failed to get AudioClient
@@ -197,7 +197,7 @@ public class MP3Handler {
                Stream input = FFMPEG.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
-                         await CopyToAsync(input, output, _PlayerStateData.InterruptSource.Token);
+                         await CopyToAsync(input, output, token);
                          await output.FlushAsync();
                          FFMPEG.Kill();
                     } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
@@ -258,6 +258,7 @@ public class MP3Handler {
 
           if (_PlayerStateData.CurrentEntry?.FFMPEG == null) {
                await Log("_PlayerStateData.CurrentFFMPEGSource is null");
+               _PlayerStateData.StateLock.Release();
                return BufferIndex;
           }
           BufferIndex = Interlocked.Read(ref _PlayerStateData.totalBytesWritten);
