@@ -287,7 +287,7 @@ public class YTSearchAutocomplete : AutocompleteHandler {
      public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction interaction, IParameterInfo paraminfo, IServiceProvider serviceProvider) {
           const int MaxResults = 5;
           string? UserInput = interaction.Data.Current.Value.ToString();
-          if (UserInput == null) return AutocompletionResult.FromSuccess();
+          if (string.IsNullOrEmpty(UserInput)) return AutocompletionResult.FromSuccess();
 
           IAsyncEnumerable<VideoSearchResult> ResultEnum = ytAPIManager.YTSearchResults(UserInput);
 
