@@ -197,7 +197,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           List<MP3Handler.MP3Entry> QueueEntries = guildData._MP3Handler.GetQueueAsList();
           for (int i = 0; i < QueueEntries.Count; i++) {
                MP3Handler.MP3Entry entry = QueueEntries[i];
-               if (entry.VideoData != null) strBuilder.AppendLine($"``{i + 1}.``[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})``{YTAPIManager.FormatTimeSpan(entry.VideoData.Duration)}``");
+               if (entry.VideoData != null) strBuilder.AppendLine($"\u202A``{i + 1}.``[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})\u202C``{YTAPIManager.FormatTimeSpan(entry.VideoData.Duration)}``");
                else strBuilder.AppendLine($"``{i}.``Couldn't get song data");
           }
 
