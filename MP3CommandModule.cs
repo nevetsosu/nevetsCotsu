@@ -25,8 +25,6 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
-          await Log($"playing with song: {song ?? "null"}. EMPTY?: {string.IsNullOrEmpty(song)}");
-
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
 
           if (string.IsNullOrEmpty(song)) { // no song
@@ -47,10 +45,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           string? YoutubeID;
           // link validity check or YT search
           if (!string.IsNullOrEmpty(YoutubeID = ytAPIManager.GetYoutubeID(song))) {
-               await Log("youtube url identified, YTID: " + YoutubeID);
+               await Log("youtube url identified: " + song);
                await RespondAsync("adding to queue...");
           } else if (!string.IsNullOrEmpty(YoutubeID = await ytAPIManager.SearchForVideo(song))) {
-               await Log("[Debug/Play] searched youtube successfully with YTID: " + YoutubeID);
+               await Log("[Debug/Play] searched youtube successfully ID: " + YoutubeID);
                await RespondAsync("searching youtube...");
           } else {
                await Log("defaulted to rick roll");
@@ -294,7 +292,6 @@ public class YTSearchAutocomplete : AutocompleteHandler {
           const int MaxResults = 5;
           string? UserInput = interaction.Data.Current.Value.ToString();
           if (UserInput == null) return AutocompletionResult.FromSuccess();
-          await Logger.LogAsync("autocompleting youtube based on: " + UserInput);
 
           IAsyncEnumerable<VideoSearchResult> ResultEnum = ytAPIManager.YTSearchResults(UserInput);
 
