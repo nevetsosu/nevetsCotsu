@@ -2,15 +2,14 @@ using System.Collections.Concurrent;
 using Discord;
 using Discord.Audio;
 using Discord.Interactions;
-
+using Serilog;
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static bool AllowAdwin = true;
      public static readonly ulong AdwinUserID = 390610273892827136UL;
-     ILogger Logger;
      ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public AdwinModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, ILogger? logger = null) {
-          Logger = logger ?? new DefaultLogger();
+     public AdwinModule(ConcurrentDictionary<ulong, GuildData> guildDataDict) {
+
           GuildDataDict = guildDataDict;
      }
 
@@ -43,7 +42,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           try {
                return Context.Guild.GetUser(AdwinUserID) ?? await (Context.Guild as IGuild).GetUserAsync(AdwinUserID);
           } catch {
-               await Logger.LogAsync("[Debug/TryGetAdwin] Exception when trying to get Adwin!!");
+               Log.Debug("[Debug/TryGetAdwin] Exception when trying to get Adwin!!");
                return null;
           }
      }
@@ -72,7 +71,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           await RespondAsync("Joining Voice...");
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger));
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
 
           IAudioClient? audioClient = await guildData._VoiceStateManager.ConnectAsync(targetChannel);
           if (audioClient == null) {
@@ -95,7 +94,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           await RespondAsync("Leaving...");
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger));
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
           await guildData._VoiceStateManager.DisconnectAsync(Context.Guild.CurrentUser.VoiceChannel);
      }
 

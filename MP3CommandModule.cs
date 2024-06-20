@@ -4,28 +4,26 @@ using System.Collections.Concurrent;
 using System.Text;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Search;
+using Serilog;
 
 public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> {
-     private ILogger Logger;
      private ConcurrentDictionary<ulong, GuildData> GuildDataDict;
      private YTAPIManager ytAPIManager;
 
-     public MP3CommandModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, YTAPIManager ytAPIManager, ILogger? logger = null) {
+     public MP3CommandModule(ConcurrentDictionary<ulong, GuildData> guildDataDict, YTAPIManager ytAPIManager) {
           GuildDataDict = guildDataDict;
-          Logger = logger ?? new DefaultLogger();
           this.ytAPIManager = ytAPIManager;
      }
 
      [SlashCommand("play", "Start the mp3 player or add song to queue.", runMode : RunMode.Async)]
      public async Task Play([Autocomplete(typeof(YTSearchAutocomplete))] string? song = null) {
-          var Log = async (string str) => await Logger.LogAsync("[PlaySlashCommand] " + str);
           IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
           }
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
 
           if (string.IsNullOrEmpty(song)) { // no song
                await RespondAsync("trying player...");
@@ -45,13 +43,13 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           string? YoutubeID;
           // link validity check or YT search
           if (!string.IsNullOrEmpty(YoutubeID = ytAPIManager.GetYoutubeID(song))) {
-               await Log("youtube url identified: " + song);
+               Log.Debug("youtube url identified: " + song);
                await RespondAsync("adding to queue...");
           } else if (!string.IsNullOrEmpty(YoutubeID = await ytAPIManager.SearchForVideo(song))) {
-               await Log("[Debug/Play] searched youtube successfully ID: " + YoutubeID);
+               Log.Debug("[Debug/Play] searched youtube successfully ID: " + YoutubeID);
                await RespondAsync("searching youtube...");
           } else {
-               await Log("defaulted to rick roll");
+               Log.Debug("defaulted to rick roll");
                await RespondAsync("defaulting to rick roll");
                YoutubeID = "dQw4w9WgXcQ";
           }
@@ -98,7 +96,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("skipping...");
 
           switch (await guildData._MP3Handler.SkipSong()) {
@@ -121,7 +119,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("resuming...");
 
           switch (await guildData._MP3Handler.TryPlay(targetChannel)) {
@@ -153,7 +151,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                return;
           }
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("pausing...");
 
           switch (await guildData._MP3Handler.Pause()) {
@@ -170,7 +168,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("queue", "lists the current song queue")]
      public async Task Queue() {
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           MP3Handler.MP3Entry? data = await guildData._MP3Handler.NowPlaying();
 
           if (data == null) {
@@ -188,7 +186,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                try {
                     timestamp += $"/{YTAPIManager.FormatTimeSpan(data.VideoData.Duration)}";
                } catch (Exception e) {
-                    await Logger.LogAsync("failed to get normal timestamp: " + e.Message);
+                    Log.Debug("failed to get normal timestamp: " + e.Message);
                }
           }
 
@@ -216,7 +214,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("nowplaying", "shows details about the current song")]
      public async Task NowPlaying() {
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           MP3Handler.MP3Entry? data = await guildData._MP3Handler.NowPlaying();
 
           if (data == null) {
@@ -234,7 +232,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                try {
                     timestamp += $"/{YTAPIManager.FormatTimeSpan(data.VideoData.Duration)}";
                } catch (Exception e) {
-                    await Logger.LogAsync("failed to get normal timestamp: " + e.Message);
+                    Log.Debug("failed to get normal timestamp: " + e.Message);
                }
           }
 
@@ -250,7 +248,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("loop", "toggles looping")]
      public async Task Loop() {
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("toggling looping...");
           switch (await guildData._MP3Handler.ToggleLooping()) {
                case MP3Handler.PlayerCommandStatus.Ok2:
@@ -283,9 +281,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
 public class YTSearchAutocomplete : AutocompleteHandler {
      YTAPIManager ytAPIManager;
-     ILogger Logger;
-     public YTSearchAutocomplete(YTAPIManager ytAPIManager, ILogger? logger = null) {
-          Logger = logger ?? new DefaultLogger();
+     public YTSearchAutocomplete(YTAPIManager ytAPIManager) {
           this.ytAPIManager = ytAPIManager;
      }
      public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction interaction, IParameterInfo paraminfo, IServiceProvider serviceProvider) {

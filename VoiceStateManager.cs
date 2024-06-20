@@ -1,3 +1,4 @@
+using Serilog;
 using Discord;
 using Discord.Audio;
 
@@ -5,18 +6,15 @@ public class VoiceStateManager {
      public IAudioClient? AudioClient;
      public IVoiceChannel? ConnectedVoiceChannel;
      private SemaphoreSlim Lock;
-     private ILogger Logger;
 
-     public VoiceStateManager(ILogger logger) {
+     public VoiceStateManager() {
           AudioClient = null;
           ConnectedVoiceChannel = null;
           Lock = new(1, 1);
-          Logger = logger;
      }
 
      public async Task<IAudioClient?> ConnectAsync(IVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/ConnectAsync] " + str);
-          await Log("Starting ConnectAsync");
+          Log.Debug("Starting ConnectAsync");
 
           await Lock.WaitAsync();
 
@@ -33,7 +31,7 @@ public class VoiceStateManager {
           } catch (Exception e) {
                ResetState();
                Lock.Release();
-               await Log("Failed to connect to voice Channel: " + e.Message);
+               Log.Debug("Failed to connect to voice Channel: " + e.Message);
                return null;
           }
 
@@ -71,8 +69,7 @@ public class VoiceStateManager {
 
      // call back for when the bot disconnects
      public async Task OnDisconnectedAsync(Exception e) {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/OnDisconnectedAsync] " + str);
-          await Log("reset voice state: " + e.Message);
+          Log.Debug("reset voice state: " + e.Message);
 
           await Lock.WaitAsync();
           ResetState();
@@ -81,8 +78,7 @@ public class VoiceStateManager {
 
      // call back for when memebers of the same voice channel disconnect
      public async Task OnClientDisconnectAsync(ulong id) {
-          var Log = async (string str) => await Logger.LogAsync("[Debug/OnClientDisconnectAsync] " + str);
-          await Log("ClientDisconnected: id " + id);
+          Log.Debug("ClientDisconnected: id " + id);
           await Lock.WaitAsync();
 
           // leave when the bot is the only one in the channnel

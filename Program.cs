@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using DotNetEnv;
 using Serilog;
-using Serilog.Core;
 using Serilog.Enrichers.CallerInfo;
 
 class Program {
@@ -25,8 +24,8 @@ class Program {
      public static async Task Main(string[] args) {
           Log.Logger = new LoggerConfiguration()
                .MinimumLevel.Debug()
-               .Enrich.WithCallerInfo(includeFileInfo: true, assemblyPrefix: "", filePathDepth: 3)
-               .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3} {Caller}] {Message}{NewLine}{Exception}")
+               .Enrich.WithCallerInfo(includeFileInfo: true, assemblyPrefix: "dotnetDiscordBot", filePathDepth: 3)
+               .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message}(at {Method}){NewLine}{Exception}")
                .CreateLogger();
 
           // Check and Set Env variables.
@@ -45,9 +44,6 @@ class Program {
           // Setup Dependency Injection and Initialize Services
           ServiceProvider = new ServiceCollection()
                .AddSingleton<DiscordSocketClient>(_ => new DiscordSocketClient(SocketConfig))
-               // .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
-               // .AddSingleton<ILogger, ComboLogger>()
-               .AddSingleton<ILogger, DefaultLogger>()
                .AddSingleton<YTAPIManager>(x => new YTAPIManager())
                .AddSingleton<YTSearchAutocomplete>()
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
@@ -56,9 +52,6 @@ class Program {
                .BuildServiceProvider();
 
           DiscordSocketClient SocketClient = ServiceProvider.GetRequiredService<DiscordSocketClient>();
-
-          // Enable SocketClient Logging
-          SocketClient.Log += ServiceProvider.GetRequiredService<ILogger>().LogAsync;
 
           // Initialize Interaction Handler
           await ServiceProvider.GetRequiredService<InteractionHandler>().InitializeAsync();

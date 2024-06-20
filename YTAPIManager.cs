@@ -3,12 +3,11 @@ using System.Text.RegularExpressions;
 using YoutubeExplode;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Search;
+using Serilog;
 
 public class YTAPIManager {
      private YoutubeClient YTClient;
-     private ILogger Logger;
-     public YTAPIManager(ILogger? logger = null) {
-          Logger = logger ?? new DefaultLogger();
+     public YTAPIManager() {
           YTClient = new YoutubeClient();
      }
 
@@ -17,10 +16,9 @@ public class YTAPIManager {
      }
 
      public static string FormatTimeSpan(TimeSpan? time = null) {
-          var Log = async (string str) => await new DefaultLogger().LogAsync("[Debug/TryPopQueue] " + str);
-          new DefaultLogger().LogAsync("PTtoNormalTimeStamp processing TimeSpan: " + time.ToString());
+          Log.Debug ("PTtoNormalTimeStamp processing TimeSpan: " + time.ToString());
           if (time == null) {
-               Log("null time span, returning 00:00:00");
+               Log.Debug("null time span, returning 00:00:00");
                return "00:00:00";
           }
           int hours = time.Value.Hours;
@@ -52,7 +50,7 @@ public class YTAPIManager {
           try {
                result = await ResultEnum.FirstAsync();
           } catch (Exception e) {
-               await Logger.LogAsync("[SearchForVideo] failed to find a single result for the search: " + e.Message);
+               Log.Debug("[SearchForVideo] failed to find a single result for the search: " + e.Message);
                return null;
           }
 
@@ -69,7 +67,7 @@ public class YTAPIManager {
           if (match.Success) {
                return match.Groups["videoId"].Value;
           } else {
-               Logger.LogAsync("Invalid URL, returning null");
+               Log.Debug("Invalid URL, returning null");
                return null; // rick roll video ID on failure
           }
      }
@@ -77,6 +75,6 @@ public class YTAPIManager {
      public async Task TestFunction() {
           var client = new YoutubeClient();
           Video v = await client.Videos.GetAsync(new VideoId("dQw4w9WgXcQ"));
-          await Logger.LogAsync("video title: " + v.Title);
+          Log.Debug("video title: " + v.Title);
      }
 }

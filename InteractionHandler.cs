@@ -19,15 +19,11 @@ public class GuildCommandData {
 }
 
 public class GuildData {
-     public GuildCommandData LocosTacos;
-     public GuildCommandData Ricky;
      public VoiceStateManager _VoiceStateManager;
      public MP3Handler _MP3Handler;
-     public GuildData(ILogger logger) {
-          LocosTacos = new GuildCommandData();
-          Ricky = new GuildCommandData();
-          _VoiceStateManager = new VoiceStateManager(logger);
-          _MP3Handler = new MP3Handler(_VoiceStateManager, logger);
+     public GuildData() {
+          _VoiceStateManager = new VoiceStateManager();
+          _MP3Handler = new MP3Handler(_VoiceStateManager);
      }
 }
 
@@ -46,6 +42,7 @@ public class InteractionHandler {
 
      public async Task InitializeAsync() {
           Handler.Log += LogAsync;
+          Client.Log += LogAsync;
           Client.Ready += ReadyAsync;
           Client.UserVoiceStateUpdated += VoiceChannelStatusUpdatedAsync;
 
@@ -67,7 +64,7 @@ public class InteractionHandler {
                LogSeverity.Debug => LogEventLevel.Debug,
                _ => LogEventLevel.Information
           };
-          Log.Write(severity, message.Exception, "[{Source}] {Message}", message.Source, message.Message);
+          Log.Write(severity, message.Exception, "[{Source}]" + message.Message, message.Source);
           await Task.CompletedTask;
      }
 

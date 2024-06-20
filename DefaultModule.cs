@@ -1,16 +1,13 @@
 using Discord.WebSocket;
 using Discord;
 using Discord.Interactions;
+using Serilog;
 
 public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
      public static readonly ulong AdwinUserID = 390610273892827136UL;
      public static readonly ulong SamyUserID = 762049021514481685UL;
      public static readonly ulong nevetsBotsuID = 787116682266673184UL;
      public static readonly ulong AffectedUser = AdwinUserID;
-     private readonly ILogger Logger;
-     public DefaultModule(ILogger? logger = null) {
-          Logger = logger ?? new DefaultLogger();
-     }
 
      [SlashCommand("ping", "respond with pong and latency")]
      public async Task Ping() {
