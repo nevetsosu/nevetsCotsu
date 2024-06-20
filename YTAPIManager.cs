@@ -60,8 +60,7 @@ public class YTAPIManager {
      }
 
      public IAsyncEnumerable<VideoSearchResult> YTSearchResults(string query) {
-          IAsyncEnumerable<VideoSearchResult> ResultEnum = YTClient.Search.GetVideosAsync(query);
-          return ResultEnum;
+          return YTClient.Search.GetVideosAsync(query);
      }
 
      public string? GetYoutubeID(string url) {
@@ -70,7 +69,7 @@ public class YTAPIManager {
           if (match.Success) {
                return match.Groups["videoId"].Value;
           } else {
-               Logger.LogAsync("Invalid URL");
+               Logger.LogAsync("Invalid URL, returning null");
                return null; // rick roll video ID on failure
           }
      }
