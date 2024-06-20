@@ -298,7 +298,7 @@ public class YTSearchAutocomplete : AutocompleteHandler {
 
           IAsyncEnumerable<VideoSearchResult> ResultEnum = ytAPIManager.YTSearchResults(UserInput);
 
-          List<AutocompleteResult> AutoCompleteResults = new(5);
+          List<AutocompleteResult> AutoCompleteResults = new(MaxResults);
 
           await ResultEnum.Take(MaxResults).ForEachAsync( (videoSearchResult) => {
                AutoCompleteResults.Add(new AutocompleteResult(videoSearchResult.Title, videoSearchResult.Url));
