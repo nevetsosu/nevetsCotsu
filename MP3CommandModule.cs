@@ -204,7 +204,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           }
 
           EmbedBuilder builder = new EmbedBuilder()
-                         .WithTitle("Now playing")
+                         .WithTitle("Now Playing")
                          .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``"));

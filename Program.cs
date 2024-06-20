@@ -4,7 +4,6 @@ using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using DotNetEnv;
-using Google.Apis.Services;
 
 class Program {
      private static IServiceProvider? ServiceProvider;
@@ -31,16 +30,6 @@ class Program {
           string? LOG_WEBHOOK_URL = Environment.GetEnvironmentVariable("LOG_WEBHOOK_URL");
           if (string.IsNullOrEmpty(LOG_WEBHOOK_URL)) {
                Console.Error.WriteLine("[FATAL] Failed to acquire LOG_WEBHOOK_URL as an environment variable");
-               return;
-          }
-          string? YOUTUBE_API_KEY = Environment.GetEnvironmentVariable("YOUTUBE_API_KEY");
-          if (string.IsNullOrEmpty(YOUTUBE_API_KEY)) {
-               Console.Error.WriteLine("[FATAL] Failed to acquire YOUTUBE_API_KEY as an environment variable");
-               return;
-          }
-          string? YOUTUBE_PROJECT_NAME = Environment.GetEnvironmentVariable("YOUTUBE_PROJECT_NAME");
-          if (string.IsNullOrEmpty(YOUTUBE_PROJECT_NAME)) {
-               Console.Error.WriteLine("[FATAL] Failed to acquire YOUTUBE_PROJECT_NAME as an environment variable");
                return;
           }
 

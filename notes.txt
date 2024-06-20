@@ -1,7 +1,4 @@
 Next steps:
-     auto complete in the play command
-     move to a new youtube API library, (the one without quota) (YoutubeExplode)
-
      Rework the Queue to be a Circular Buffer
      add in a clear command
      move command
