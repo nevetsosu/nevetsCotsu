@@ -25,7 +25,7 @@ class Program {
           Log.Logger = new LoggerConfiguration()
                .MinimumLevel.Debug()
                .Enrich.WithCallerInfo(includeFileInfo: true, assemblyPrefix: "dotnetDiscordBot", filePathDepth: 3)
-               .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message}(at {Method}){NewLine}{Exception}")
+               .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}][{Method}] {Message}{NewLine}{Exception}")
                .CreateLogger();
 
           // Check and Set Env variables.
