@@ -34,10 +34,12 @@ public class MP3Handler {
           public string VideoID;
           public Process? FFMPEG;
           public Video? VideoData;
-          public MP3Entry(string videoID, Process? ffmpeg = null, Video? videoData = null) {
+          public IGuildUser? RequestUser;
+          public MP3Entry(string videoID, IGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null) {
                VideoID = videoID;
                FFMPEG = ffmpeg;
                VideoData = videoData;
+               RequestUser = requestUser;
           }
     }
 
@@ -52,7 +54,7 @@ public class MP3Handler {
      public MP3Handler(VoiceStateManager voiceStateManager, ILogger logger) {
           _VoiceStateManager = voiceStateManager;
           _PlayerStateData = new();
-          SongQueue = new(_PlayerStateData);
+          SongQueue = new(logger);
           Logger = logger;
      }
 
@@ -240,7 +242,7 @@ public class MP3Handler {
           }
 
           // make a copy of the entry to avoid reflecting changes during other state changes
-          MP3Entry copy = new MP3Entry(entry.VideoID, entry.FFMPEG, entry.VideoData);
+          MP3Entry copy = new MP3Entry(entry.VideoID, entry.RequestUser, entry.FFMPEG, entry.VideoData);
 
           _PlayerStateData.StateLock.Release();
 
@@ -310,7 +312,6 @@ public class MP3Handler {
 
      private class MP3Queue {
           public int Count { get => SongQueue.Count; }
-          // private PlayerStateData _PlayerStateData;
           private ConcurrentQueue<MP3Entry> SongQueue;
           private FFMPEGHandler _FFMPEGHandler;
           private SemaphoreSlim sem;
@@ -319,7 +320,7 @@ public class MP3Handler {
           public bool Looping { get; private set; }
           ILogger Logger;
 
-          public MP3Queue(PlayerStateData playerStateData, ILogger? logger = null) {
+          public MP3Queue(ILogger? logger = null) {
                // _PlayerStateData = playerStateData;
                SongQueue = new();
                sem = new(1, 1);
@@ -363,7 +364,7 @@ public class MP3Handler {
                // if looping, return the current looping entry and prepare a new looping entry
                if (Looping && LoopingEntry != null) {
                     entry = LoopingEntry;
-                    LoopingEntry = new MP3Entry(entry.VideoID, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f));
+                    LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f));
                     sem.Release();
                     return entry;
                }
@@ -403,7 +404,7 @@ public class MP3Handler {
                     sem.Release();
                     return;
                }
-               LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+               LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, entry.RequestUser, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
 
                Looping = true;
                sem.Release();

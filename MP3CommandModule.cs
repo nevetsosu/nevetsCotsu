@@ -60,7 +60,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           Video? VideoData = await ytAPIManager.GetVideoData(YoutubeID);
 
           // check if it is a URL, other wise look it up on Youtube
-          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Handler.MP3Entry(YoutubeID, null, VideoData))) {
+          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Handler.MP3Entry(YoutubeID, Context.User as IGuildUser, null, VideoData))) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
@@ -206,6 +206,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           EmbedBuilder builder = new EmbedBuilder()
                          .WithTitle("Now Playing")
                          .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(data.RequestUser?.Mention ?? "``unknown``"))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``"));
 
@@ -242,6 +243,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           Embed embed = new EmbedBuilder()
                          .WithTitle("Now playing")
                          .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(data.RequestUser?.Mention ?? "``unknown``"))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``"))
                          .Build();
