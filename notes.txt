@@ -1,5 +1,4 @@
 Next steps:
-     request source (person) as a part of MP3 entry
      Rework the Queue to be a Circular Buffer
      add in a clear command
      move command
