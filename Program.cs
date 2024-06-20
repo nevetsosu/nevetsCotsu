@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using DotNetEnv;
 using Serilog;
+using Serilog.Core;
+using Serilog.Enrichers.CallerInfo;
 
 class Program {
      private static IServiceProvider? ServiceProvider;
@@ -23,7 +25,8 @@ class Program {
      public static async Task Main(string[] args) {
           Log.Logger = new LoggerConfiguration()
                .MinimumLevel.Debug()
-               .WriteTo.Console()
+               .Enrich.WithCallerInfo(includeFileInfo: true, assemblyPrefix: "", filePathDepth: 3)
+               .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3} {Caller}] {Message}{NewLine}{Exception}")
                .CreateLogger();
 
           // Check and Set Env variables.

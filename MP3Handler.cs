@@ -159,12 +159,12 @@ public class MP3Handler {
           var Log = async (string str) => await Logger.LogAsync("[Debug/TryPopQueue] " + str);
 
           MP3Entry? entry;
-          if ((entry = await SongQueue.TryDequeue()) == null) return false;
+          if ((entry = SongQueue.TryDequeue()) == null) return false;
 
           // preloaded again if the entry wasnt already preloaded
           if (entry.FFMPEG == null) {
                await Log("Current Entry wasn't preloaded??? Attempting another load");
-               entry.FFMPEG = await new FFMPEGHandler().TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+               entry.FFMPEG = new FFMPEGHandler().TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
                if (entry.FFMPEG == null) return false; // if the preload doesnt work again
           }
 
@@ -354,18 +354,18 @@ public class MP3Handler {
           public async Task Enqueue(MP3Entry entry) {
                sem.Wait();
                SongQueue.Enqueue(entry);
-               await Logger.LogAsync($"Is the queue currently preloaded?: {await TryPreloadNext()}");
+               await Logger.LogAsync($"Is the queue currently preloaded?: {TryPreloadNext()}");
                sem.Release();
           }
 
-          public async Task<MP3Entry?> TryDequeue() {
+          public MP3Entry? TryDequeue() {
                sem.Wait();
                MP3Entry? entry;
 
                // if looping, return the current looping entry and prepare a new looping entry
                if (Looping && LoopingEntry != null) {
                     entry = LoopingEntry;
-                    LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f));
+                    LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f));
                     sem.Release();
                     return entry;
                }
@@ -373,7 +373,7 @@ public class MP3Handler {
                // return the top entry and preload the next one
                if (SongQueue.TryDequeue(out entry)) {
                     SongQueueNextPreloaded = false;
-                    await TryPreloadNext();
+                    TryPreloadNext();
                     sem.Release();
                     return entry;
                }
@@ -385,11 +385,11 @@ public class MP3Handler {
 
           // returns whether there the top of the queue is preloaded (it may already be preloaded)
           // assumes that the sem is already acquired
-          private async Task<bool> TryPreloadNext() {
+          private bool TryPreloadNext() {
                if (SongQueueNextPreloaded) return true;
                MP3Entry? entry;
                if (SongQueue.TryPeek(out entry)) {
-                    entry.FFMPEG = await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+                    entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
                     SongQueueNextPreloaded = true;
                     return true;
                }
@@ -405,7 +405,7 @@ public class MP3Handler {
                     sem.Release();
                     return;
                }
-               LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, entry.RequestUser, await _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+               LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
 
                Looping = true;
                sem.Release();

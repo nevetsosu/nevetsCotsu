@@ -72,7 +72,7 @@ public class InteractionHandler {
      }
 
      private async Task ReadyAsync() {
-          await ServiceProvider.GetRequiredService<ILogger>().LogAsync("Handling Register Commands");
+          Log.Debug("Handling Register Commands");
           await Handler.RegisterCommandsGloballyAsync();
      }
 
@@ -91,7 +91,7 @@ public class InteractionHandler {
                     switch (result.Error)
                     {
                          case InteractionCommandError.UnmetPrecondition:
-                              await ServiceProvider.GetRequiredService<ILogger>().LogAsync("[InteractionCreatedAsync] UnmetPrecondition");
+                              Log.Error("[InteractionCreatedAsync] UnmetPrecondition");
                               // implement
                               break;
                          default:
@@ -116,7 +116,7 @@ public class InteractionHandler {
 //             switch (result.Error)
 //             {
 //                 case InteractionCommandError.UnmetPrecondition:
-//                     await ServiceProvider.GetRequiredService<ILogger>().LogAsync("[InteractionCreatedAsync] UnmetPrecondition");
+//                     await Log.Error("[InteractionCreatedAsync] UnmetPrecondition");
 //                     break;
 //                 default:
 //                     break;
