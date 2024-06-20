@@ -41,8 +41,8 @@ public class InteractionHandler {
      }
 
      public async Task InitializeAsync() {
-          Handler.Log += LogAsync;
-          Client.Log += LogAsync;
+          Handler.Log += DiscordLogAsync;
+          Client.Log += DiscordLogAsync;
           Client.Ready += ReadyAsync;
           Client.UserVoiceStateUpdated += VoiceChannelStatusUpdatedAsync;
 
@@ -52,7 +52,7 @@ public class InteractionHandler {
           // Handler.InteractionExecuted += InteractionExecutedAsync;
      }
 
-     private static async Task LogAsync(LogMessage message)
+     private static async Task DiscordLogAsync(LogMessage message)
 {
      LogEventLevel severity = message.Severity switch
           {
@@ -64,7 +64,7 @@ public class InteractionHandler {
                LogSeverity.Debug => LogEventLevel.Debug,
                _ => LogEventLevel.Information
           };
-          Log.Write(severity, message.Exception, "[{Source}]" + message.Message, message.Source);
+          Log.Write(severity, message.Exception, "[{Source}] " + message.Message, message.Source);
           await Task.CompletedTask;
      }
 
