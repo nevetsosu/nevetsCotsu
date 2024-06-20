@@ -1,6 +1,4 @@
 Next steps:
-     Configure a proper logger (Serilog)
-
      Rework the Queue to be a Circular Buffer
      add in a clear command
      move command
