@@ -1,10 +1,9 @@
 using Discord;
 using Discord.Interactions;
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Text.RegularExpressions;
-using Google.Apis.YouTube.v3.Data;
 using System.Text;
+using YoutubeExplode.Videos;
+using YoutubeExplode.Search;
 
 public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> {
      private ILogger Logger;
@@ -66,10 +65,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
                case MP3Handler.PlayerCommandStatus.Already:
-                    await ModifyOriginalResponseAsync((m) => m.Content = $"added to queue: [{VideoData?.Snippet.Title}]({@"https://www.youtube.com/v/" + VideoData?.Id})");
+                    await ModifyOriginalResponseAsync((m) => m.Content = $"added to queue: [{VideoData?.Title}]({@"https://www.youtube.com/v/" + VideoData?.Id})");
                     break;
                case MP3Handler.PlayerCommandStatus.Ok:
-                    await ModifyOriginalResponseAsync((m) => m.Content = $"playing [{VideoData?.Snippet.Title}]({@"https://www.youtube.com/v/" + VideoData?.Id})");
+                    await ModifyOriginalResponseAsync((m) => m.Content = $"playing [{VideoData?.Title}]({@"https://www.youtube.com/v/" + VideoData?.Id})");
                     break;
                default:
                     break;
@@ -187,9 +186,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           if (VideoProgressSeconds / 3600 > 0) timestamp = $"{VideoProgressSeconds / 3600}{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
           else timestamp = $"{(VideoProgressSeconds / 60) % 60:0}:{VideoProgressSeconds % 60:00}";
 
-          if (data.VideoData?.ContentDetails.Duration != null) {
+          if (data.VideoData?.Duration != null) {
                try {
-                    timestamp += $"/{YTAPIManager.PTtoNormalTimeStamp(data.VideoData.ContentDetails.Duration)}";
+                    timestamp += $"/{YTAPIManager.FormatTimeSpan(data.VideoData.Duration)}";
                } catch (Exception e) {
                     await Logger.LogAsync("failed to get normal timestamp: " + e.Message);
                }
@@ -200,13 +199,13 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           List<MP3Handler.MP3Entry> QueueEntries = guildData._MP3Handler.GetQueueAsList();
           for (int i = 0; i < QueueEntries.Count; i++) {
                MP3Handler.MP3Entry entry = QueueEntries[i];
-               if (entry.VideoData != null) strBuilder.AppendLine($"``{i + 1}.``[{entry.VideoData.Snippet.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})``{YTAPIManager.PTtoNormalTimeStamp(entry.VideoData.ContentDetails.Duration)}``");
+               if (entry.VideoData != null) strBuilder.AppendLine($"``{i + 1}.``[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})``{YTAPIManager.FormatTimeSpan(entry.VideoData.Duration)}``");
                else strBuilder.AppendLine($"``{i}.``Couldn't get song data");
           }
 
           EmbedBuilder builder = new EmbedBuilder()
                          .WithTitle("Now playing")
-                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Snippet.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``"));
 
@@ -232,9 +231,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           if (VideoProgressSeconds / 3600 > 0) timestamp = $"{VideoProgressSeconds / 3600:00}:{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
           else timestamp = $"{(VideoProgressSeconds / 60) % 60:0}:{VideoProgressSeconds % 60:00}";
 
-          if (data.VideoData?.ContentDetails.Duration != null) {
+          if (data.VideoData?.Duration != null) {
                try {
-                    timestamp += $"/{YTAPIManager.PTtoNormalTimeStamp(data.VideoData.ContentDetails.Duration)}";
+                    timestamp += $"/{YTAPIManager.FormatTimeSpan(data.VideoData.Duration)}";
                } catch (Exception e) {
                     await Logger.LogAsync("failed to get normal timestamp: " + e.Message);
                }
@@ -242,7 +241,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           Embed embed = new EmbedBuilder()
                          .WithTitle("Now playing")
-                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Snippet.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``"))
                          .Build();
@@ -274,15 +273,11 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      [SlashCommand("testmp3", "test command", runMode : RunMode.Async)]
      public async Task Test() {
           await RespondAsync("working");
-          Video? response = await ytAPIManager.GetVideoData("dQw4w9WgXcQ");
+          // Video? response = await ytAPIManager.GetVideoData("dQw4w9WgXcQ");
+          await ytAPIManager.TestFunction();
 
           await ModifyOriginalResponseAsync(m => m.Content = "done");
      }
-
-     // [SlashCommand("search", "search youtube for a song to add to add to the queue")]
-     // public async Task Search([Autocomplete(typeof(YTSearchAutocomplete))] string query) {
-          
-     // }
 
 }
 
@@ -294,22 +289,19 @@ public class YTSearchAutocomplete : AutocompleteHandler {
           this.ytAPIManager = ytAPIManager;
      }
      public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction interaction, IParameterInfo paraminfo, IServiceProvider serviceProvider) {
-          return AutocompletionResult.FromSuccess(); // turn off suggestions for now
-
-          ImmutableList<SearchResult>? results;
+          const int MaxResults = 5;
           string? UserInput = interaction.Data.Current.Value.ToString();
+          if (UserInput == null) return AutocompletionResult.FromSuccess();
           await Logger.LogAsync("autocompleting youtube based on: " + UserInput);
 
-          if (string.IsNullOrEmpty(UserInput) || ytAPIManager.GetYoutubeID(UserInput) != null || (results = await ytAPIManager.YTSearchResults(UserInput)) == null)
-              return AutocompletionResult.FromSuccess();
+          IAsyncEnumerable<VideoSearchResult> ResultEnum = ytAPIManager.YTSearchResults(UserInput);
 
-          List<AutocompleteResult> suggestions = new(results.Count);
+          List<AutocompleteResult> AutoCompleteResults = new(5);
 
-         for (int i = 0; i < results.Count; i++) {
-               if (results[i].Id.Kind == "youtube#video")
-                    suggestions.Add(new AutocompleteResult(results[i].Snippet.Title, @"https://www.youtube.com/v/" + results[i].Id.VideoId));
-         }
+          await ResultEnum.Take(MaxResults).ForEachAsync( (videoSearchResult) => {
+               AutoCompleteResults.Add(new AutocompleteResult(videoSearchResult.Title, videoSearchResult.Url));
+          });
 
-          return AutocompletionResult.FromSuccess(suggestions);
+          return AutocompletionResult.FromSuccess(AutoCompleteResults);
      }
 }

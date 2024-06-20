@@ -2,7 +2,8 @@ using Discord;
 using Discord.Audio;
 using System.Diagnostics;
 using System.Collections.Concurrent;
-using Google.Apis.YouTube.v3.Data;
+// using Google.Apis.YouTube.v3.Data;
+using YoutubeExplode.Videos;
 
 public class MP3Handler {
      public enum PlayerCommandStatus {

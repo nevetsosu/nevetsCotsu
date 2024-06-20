@@ -50,7 +50,7 @@ class Program {
                // .AddSingleton<DiscordWebhookClient>(_ => new DiscordWebhookClient(LOG_WEBHOOK_URL))
                // .AddSingleton<ILogger, ComboLogger>()
                .AddSingleton<ILogger, DefaultLogger>()
-               .AddSingleton<YTAPIManager>(x => new YTAPIManager(YOUTUBE_API_KEY, YOUTUBE_PROJECT_NAME))
+               .AddSingleton<YTAPIManager>(x => new YTAPIManager())
                .AddSingleton<YTSearchAutocomplete>()
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
                .AddSingleton<InteractionHandler>()
