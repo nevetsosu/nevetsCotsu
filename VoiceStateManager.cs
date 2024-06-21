@@ -37,23 +37,26 @@ public class VoiceStateManager {
 
           // update state
           if (newAudioClient != null) {
+               Log.Debug("Registering a new Audio Client");
                AudioClient = newAudioClient;
                ConnectedVoiceChannel = targetVoiceChannel;
                AudioClient.Disconnected += OnDisconnectedAsync;
                AudioClient.ClientDisconnected += OnClientDisconnectAsync;
                if (OnDisconnectAsync != null) AudioClient.Disconnected += OnDisconnectAsync;
-          } else ResetState();
+          } else {
+               ResetState();
+          }
 
           Lock.Release();
 
-          return AudioClient;
+          return newAudioClient;
      }
 
      public async Task DisconnectAsync(IVoiceChannel voiceChannel) {
           await Lock.WaitAsync();
-          if (ConnectedVoiceChannel != null) {
+          if (AudioClient != null) {
                try {
-                    await voiceChannel.DisconnectAsync();
+                    await AudioClient.StopAsync();
                } catch {}
           }
           ResetState();
@@ -82,12 +85,9 @@ public class VoiceStateManager {
           await Lock.WaitAsync();
 
           // leave when the bot is the only one in the channnel
-          if (AudioClient != null && ConnectedVoiceChannel != null && await ConnectedVoiceChannel.GetUsersAsync().CountAsync() == 1) {
-               try {
-                    await AudioClient.StopAsync();
-               } catch {}
-
-               ResetState();
+          if (ConnectedVoiceChannel != null) {
+               int UserCount = await ConnectedVoiceChannel.GetUsersAsync().CountAsync();
+               Log.Debug("number of people remaining: " + UserCount.ToString());
           }
 
           Lock.Release();
