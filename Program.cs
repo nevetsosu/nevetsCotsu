@@ -44,7 +44,7 @@ class Program {
           // Setup Dependency Injection and Initialize Services
           ServiceProvider = new ServiceCollection()
                .AddSingleton<DiscordSocketClient>(_ => new DiscordSocketClient(SocketConfig))
-               .AddSingleton<YTAPIManager>(x => new YTAPIManager())
+               .AddSingleton<YTAPIManager>(_ => new YTAPIManager())
                .AddSingleton<YTSearchAutocomplete>()
                .AddSingleton<InteractionService>(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>().Rest, ServiceConfig))
                .AddSingleton<InteractionHandler>()
