@@ -8,7 +8,7 @@ using Serilog;
 using Serilog.Events;
 
 public class GuildCommandData {
-     public int PlayingLock; // 0 false 1 true
+     public int PlayingLock; // 0 false 1 true // use InterLocked operations to change
      public int CallCount;
 
      public GuildCommandData() {
