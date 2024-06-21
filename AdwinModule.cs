@@ -41,7 +41,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      }
 
      private async Task<SocketGuildUser?> TryGetAdwin() {
-          SocketGuildUser? Adwin = Context.Guild.GetUser(AdwinUserID); // try to get from user cach
+          SocketGuildUser? Adwin = Context.Guild.GetUser(AdwinUserID); // try to get from user cache
           if (Adwin == null) { // get info directly using rest call
                IUser restAdwin = await (Context.Guild as IGuild).GetUserAsync(AdwinUserID);
                Adwin = restAdwin as SocketGuildUser;
