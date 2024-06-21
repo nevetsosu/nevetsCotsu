@@ -6,7 +6,8 @@ using System.Text;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Search;
 using Serilog;
-using System.Globalization;
+
+using MP3Logic;
 
 public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> {
      private ConcurrentDictionary<ulong, GuildData> GuildDataDict;
@@ -30,10 +31,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           if (string.IsNullOrEmpty(song)) { // no song
                await RespondAsync("trying player...");
                switch (await guildData._MP3Handler.TryPlay(targetChannel)) {
-                    case MP3Handler.PlayerCommandStatus.EmptyQueue:
+                    case PlayerCommandStatus.EmptyQueue:
                          await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                          break;
-                    case MP3Handler.PlayerCommandStatus.Already:
+                    case PlayerCommandStatus.Already:
                          await ModifyOriginalResponseAsync((m) => m.Content = $"already playing");
                          break;
                     default:
@@ -58,14 +59,14 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           Video? VideoData = await ytAPIManager.GetVideoData(YoutubeID);
 
           // check if it is a URL, other wise look it up on Youtube
-          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Handler.MP3Entry(YoutubeID, Context.User as SocketGuildUser, null, VideoData))) {
-               case MP3Handler.PlayerCommandStatus.EmptyQueue:
+          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Entry(YoutubeID, Context.User as SocketGuildUser, null, VideoData))) {
+               case PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
-               case MP3Handler.PlayerCommandStatus.Already:
+               case PlayerCommandStatus.Already:
                     await ModifyOriginalResponseAsync((m) => m.Content = $"added to queue: [{VideoData?.Title}]({@"https://www.youtube.com/v/" + VideoData?.Id})");
                     break;
-               case MP3Handler.PlayerCommandStatus.Ok:
+               case PlayerCommandStatus.Ok:
                     await ModifyOriginalResponseAsync((m) => m.Content = $"playing [{VideoData?.Title}]({@"https://www.youtube.com/v/" + VideoData?.Id})");
                     break;
                default:
@@ -82,7 +83,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      //      await RespondAsync($"added {URL} to queue");
      //      GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData(Logger)); // error check this line, potential null deref with Context.Guild.Id
      //      // add to MP3Handler
-     //      guildData._MP3Handler.AddQueue(new MP3Handler.MP3Entry(URL));
+     //      guildData._MP3Handler.AddQueue(new MP3Entry(URL));
      // }
 
      [SlashCommand("skip", "skip the current song", runMode : RunMode.Async)]
@@ -102,10 +103,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync("skipping...");
 
           switch (await guildData._MP3Handler.SkipSong()) {
-               case MP3Handler.PlayerCommandStatus.EmptyQueue:
+               case PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content += "there are now no more songs in the queue");
                     break;
-               case MP3Handler.PlayerCommandStatus.Disconnected:
+               case PlayerCommandStatus.Disconnected:
                     await ModifyOriginalResponseAsync((m) => m.Content += "unexpected disconnect before next song");
                     break;
                default:
@@ -125,10 +126,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync("resuming...");
 
           switch (await guildData._MP3Handler.TryPlay(targetChannel)) {
-               case MP3Handler.PlayerCommandStatus.EmptyQueue:
+               case PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "no songs to resume");
                     break;
-               case MP3Handler.PlayerCommandStatus.Already:
+               case PlayerCommandStatus.Already:
                     await ModifyOriginalResponseAsync((m) => m.Content = "already playing");
                     break;
                default:
@@ -157,10 +158,10 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync("pausing...");
 
           switch (await guildData._MP3Handler.Pause()) {
-               case MP3Handler.PlayerCommandStatus.Already:
+               case PlayerCommandStatus.Already:
                     await ModifyOriginalResponseAsync((m) => m.Content = "already paused");
                     break;
-               case MP3Handler.PlayerCommandStatus.EmptyQueue: // substitute for: not currently playing
+               case PlayerCommandStatus.EmptyQueue: // substitute for: not currently playing
                     await ModifyOriginalResponseAsync((m) => m.Content = "not currently playing");
                     break;
                default:
@@ -171,7 +172,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      [SlashCommand("queue", "lists the current song queue")]
      public async Task Queue() {
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
-          MP3Handler.MP3Entry? data = await guildData._MP3Handler.NowPlaying();
+          MP3Entry? data = await guildData._MP3Handler.NowPlaying();
 
           if (data == null) {
                await RespondAsync("no song currently playing");
@@ -199,9 +200,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           StringBuilder strBuilder = new StringBuilder();
 
-          List<MP3Handler.MP3Entry> QueueEntries = guildData._MP3Handler.GetQueueAsList();
+          List<MP3Entry> QueueEntries = guildData._MP3Handler.GetQueueAsList();
           for (int i = 0; i < QueueEntries.Count; i++) {
-               MP3Handler.MP3Entry entry = QueueEntries[i];
+               MP3Entry entry = QueueEntries[i];
                if (entry.VideoData != null) strBuilder.AppendLine($"\u202A``{i + 1}.``[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})\u202C``{YTAPIManager.FormatTimeSpan(entry.VideoData.Duration)}``");
                else strBuilder.AppendLine($"``{i}.``Couldn't get song data");
           }
@@ -222,7 +223,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
      [SlashCommand("nowplaying", "shows details about the current song")]
      public async Task NowPlaying() {
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
-          MP3Handler.MP3Entry? data = await guildData._MP3Handler.NowPlaying();
+          MP3Entry? data = await guildData._MP3Handler.NowPlaying();
 
           if (data == null) {
                await RespondAsync("no song currently playing");
@@ -264,16 +265,16 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           await RespondAsync("toggling looping...");
           switch (await guildData._MP3Handler.ToggleLooping()) {
-               case MP3Handler.PlayerCommandStatus.Ok2:
+               case PlayerCommandStatus.Ok2:
                     await ModifyOriginalResponseAsync(m => m.Content = "Looping");
                     break;
-               case MP3Handler.PlayerCommandStatus.Ok:
+               case PlayerCommandStatus.Ok:
                     await ModifyOriginalResponseAsync(m => m.Content = "no longer looping");
                     break;
-               case MP3Handler.PlayerCommandStatus.Disconnected:
+               case PlayerCommandStatus.Disconnected:
                     await ModifyOriginalResponseAsync(m => m.Content = "bot is currently disconnected");
                     break;
-               case MP3Handler.PlayerCommandStatus.NotCurrentlyPlaying:
+               case PlayerCommandStatus.NotCurrentlyPlaying:
                     await ModifyOriginalResponseAsync(m => m.Content = "there is nothing to loop right now");
                     break;
                default:
