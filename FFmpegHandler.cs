@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Serilog;
 
 public class FFMPEGHandler {
-     public static float DefaultVolume = 0.2f;
+     public static float DefaultVolume = 0.5f;
      public float Volume {
           get;
           private set;
