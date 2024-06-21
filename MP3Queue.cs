@@ -9,7 +9,7 @@ namespace MP3Logic {
 
 public class MP3Queue {
      public int Count { get => SongQueue.Count; }
-     private ConcurrentQueue<MP3Entry> SongQueue;
+     private IndexableQueue<MP3Entry> SongQueue;
      private FFMPEGHandler _FFMPEGHandler;
      private SemaphoreSlim sem;
      private bool SongQueueNextPreloaded;
@@ -45,9 +45,11 @@ public class MP3Queue {
      }
 
      public void Enqueue(MP3Entry entry) {
+          Log.Debug("MP3Queue Adding entry with Video Title" + entry.VideoData?.Title);
           sem.Wait();
           SongQueue.Enqueue(entry);
-          Log.Debug($"Is the queue currently preloaded?: {TryPreloadNext()}");
+          bool preloaded = TryPreloadNext();
+          Log.Debug($"Is the queue currently preloaded?: {preloaded}");
           sem.Release();
      }
 
@@ -81,7 +83,7 @@ public class MP3Queue {
      private bool TryPreloadNext() {
           if (SongQueueNextPreloaded) return true;
           MP3Entry? entry;
-          if (SongQueue.TryPeek(out entry)) {
+          if (SongQueue.TryPeek(out entry) && entry != null) {
                entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
                SongQueueNextPreloaded = true;
                return true;

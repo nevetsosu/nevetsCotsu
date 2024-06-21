@@ -58,4 +58,12 @@ class Program {
 
           await Task.Delay(Timeout.Infinite);
      }
+
+     public class TestClass {
+          public int Val;
+
+          public TestClass (int val) {
+               Val = val;
+          }
+     }
 }

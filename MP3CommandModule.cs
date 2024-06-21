@@ -181,7 +181,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync("thinking");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
-          string timestamp = YTAPIManager.FormatTimeSpan(new TimeSpan());
+          string timestamp;
           if (VideoProgressSeconds / 3600 > 0) timestamp = $"{VideoProgressSeconds / 3600}:{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
           else timestamp = $"{(VideoProgressSeconds / 60) % 60:0}:{VideoProgressSeconds % 60:00}";
 
@@ -201,6 +201,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           StringBuilder strBuilder = new StringBuilder();
 
           List<MP3Entry> QueueEntries = guildData._MP3Handler.GetQueueAsList();
+          Log.Debug("GetQueueAsList result: " + QueueEntries.Count);
           for (int i = 0; i < QueueEntries.Count; i++) {
                MP3Entry entry = QueueEntries[i];
                if (entry.VideoData != null) strBuilder.AppendLine($"\u202A``{i + 1}.``[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})\u202C``{YTAPIManager.FormatTimeSpan(entry.VideoData.Duration)}``");
