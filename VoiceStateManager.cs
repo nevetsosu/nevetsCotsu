@@ -1,6 +1,7 @@
 using Serilog;
 using Discord;
 using Discord.Audio;
+using Discord.WebSocket;
 
 public class VoiceStateManager {
      public IAudioClient? AudioClient;
@@ -84,13 +85,14 @@ public class VoiceStateManager {
           Log.Debug("ClientDisconnected: id " + id);
           await Lock.WaitAsync();
 
-          Discord.WebSocket.SocketVoiceChannel? channel = ConnectedVoiceChannel as Discord.WebSocket.SocketVoiceChannel;
+          SocketVoiceChannel? channel = ConnectedVoiceChannel as SocketVoiceChannel;
 
           // leave when the bot is the only one in the channnel
           if (channel != null) {
-               Log.Debug($"number of people remaining in channel {channel.Id}: {channel.ConnectedUsers.Count()}");
+               int count = channel.ConnectedUsers.Count();
+               Log.Debug($"number of people remaining in channel {channel.Id}: {count}");
 
-               if (channel.ConnectedUsers.Count() <= 1) {
+               if (count <= 1) {
                     // disconnect
                     if (AudioClient != null) {
                          try {

@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using Discord;
 using Discord.Audio;
 using Discord.Interactions;
+using Discord.WebSocket;
+
 using Serilog;
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static bool AllowAdwin = true;
@@ -58,7 +60,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
      [SlashCommand("join", "tells the bot to join the channel", runMode: RunMode.Async)]
      private async Task JoinVoice() {
-          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          IVoiceChannel? targetChannel = (Context.User as SocketGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not currently in a voice channel!");
                return;
