@@ -59,8 +59,8 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      }
 
      [SlashCommand("join", "tells the bot to join the channel", runMode: RunMode.Async)]
-     private async Task JoinVoice() {
-          IVoiceChannel? targetChannel = (Context.User as SocketGuildUser)?.VoiceChannel;
+     public async Task JoinVoice() {
+          SocketVoiceChannel? targetChannel = (Context.User as SocketGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not currently in a voice channel!");
                return;
@@ -84,7 +84,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
 
      [SlashCommand("leave", "leave current voice channel", runMode: RunMode.Async)]
-     private async Task LeaveVoice() {
+     public async Task LeaveVoice() {
           if (Context.Guild?.CurrentUser?.VoiceChannel == null) {
                await RespondAsync("Bot is not connected to any voice Channel");
                return;

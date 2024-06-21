@@ -3,7 +3,6 @@ using Discord.WebSocket;
 using Discord.Interactions;
 using System.Reflection;
 using System.Collections.Concurrent;
-using Microsoft.Extensions.DependencyInjection;
 
 using Serilog;
 using Serilog.Events;

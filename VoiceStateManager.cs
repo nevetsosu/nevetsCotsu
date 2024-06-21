@@ -5,7 +5,7 @@ using Discord.WebSocket;
 
 public class VoiceStateManager {
      public IAudioClient? AudioClient;
-     public IVoiceChannel? ConnectedVoiceChannel;
+     public SocketVoiceChannel? ConnectedVoiceChannel;
      private SemaphoreSlim Lock;
 
      public VoiceStateManager() {
@@ -14,7 +14,7 @@ public class VoiceStateManager {
           Lock = new(1, 1);
      }
 
-     public async Task<IAudioClient?> ConnectAsync(IVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
+     public async Task<IAudioClient?> ConnectAsync(SocketVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
           Log.Debug("Starting ConnectAsync");
 
           await Lock.WaitAsync();
@@ -85,12 +85,10 @@ public class VoiceStateManager {
           Log.Debug("ClientDisconnected: id " + id);
           await Lock.WaitAsync();
 
-          SocketVoiceChannel? channel = ConnectedVoiceChannel as SocketVoiceChannel;
-
           // leave when the bot is the only one in the channnel
-          if (channel != null) {
-               int count = channel.ConnectedUsers.Count();
-               Log.Debug($"number of people remaining in channel {channel.Id}: {count}");
+          if (ConnectedVoiceChannel != null) {
+               int count = ConnectedVoiceChannel.ConnectedUsers.Count();
+               Log.Debug($"number of people remaining in channel {ConnectedVoiceChannel.Id}: {count}");
 
                if (count <= 1) {
                     // disconnect

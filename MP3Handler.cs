@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Discord.Audio;
 using System.Diagnostics;
 using System.Collections.Concurrent;
@@ -34,8 +35,8 @@ public class MP3Handler {
           public string VideoID;
           public Process? FFMPEG;
           public Video? VideoData;
-          public IGuildUser? RequestUser;
-          public MP3Entry(string videoID, IGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null) {
+          public SocketGuildUser? RequestUser;
+          public MP3Entry(string videoID, SocketGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null) {
                VideoID = videoID;
                FFMPEG = ffmpeg;
                VideoData = videoData;
@@ -89,7 +90,7 @@ public class MP3Handler {
           return PlayerCommandStatus.Ok;
      }
 
-     public async Task<PlayerCommandStatus> TryPlay(IVoiceChannel targetChannel, MP3Entry? entry = null) {
+     public async Task<PlayerCommandStatus> TryPlay(SocketVoiceChannel targetChannel, MP3Entry? entry = null) {
           await _PlayerStateData.StateLock.WaitAsync();
           // queue as long as the VideoID is not null
           if (!string.IsNullOrEmpty(entry?.VideoID)) {
@@ -134,7 +135,7 @@ public class MP3Handler {
           }
 
           // check if the bot is still connected
-          IVoiceChannel? targetChannel = _VoiceStateManager.ConnectedVoiceChannel;
+          SocketVoiceChannel? targetChannel = _VoiceStateManager.ConnectedVoiceChannel;
           if (targetChannel == null) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
@@ -170,7 +171,7 @@ public class MP3Handler {
      }
 
      // state lock should already be acquired on call
-     private async Task StartPlayer(IVoiceChannel targetChannnel, CancellationToken token) {
+     private async Task StartPlayer(SocketVoiceChannel targetChannnel, CancellationToken token) {
           // return if failed to get AudioClient
           IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel, OnDisconnectAsync);
           if (AudioClient == null) {

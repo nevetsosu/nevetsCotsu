@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Discord.Interactions;
 using System.Collections.Concurrent;
 using System.Text;
@@ -17,7 +18,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("play", "Start the mp3 player or add song to queue.", runMode : RunMode.Async)]
      public async Task Play([Autocomplete(typeof(YTSearchAutocomplete))] string? song = null) {
-          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          SocketVoiceChannel? targetChannel = (Context.User as SocketGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
@@ -56,7 +57,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           Video? VideoData = await ytAPIManager.GetVideoData(YoutubeID);
 
           // check if it is a URL, other wise look it up on Youtube
-          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Handler.MP3Entry(YoutubeID, Context.User as IGuildUser, null, VideoData))) {
+          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Handler.MP3Entry(YoutubeID, Context.User as SocketGuildUser, null, VideoData))) {
                case MP3Handler.PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
@@ -85,7 +86,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("skip", "skip the current song", runMode : RunMode.Async)]
      public async Task SkipSong() {
-          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          SocketVoiceChannel? targetChannel = (Context.User as SocketGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
@@ -113,7 +114,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("resume", "resumes a previously loaded song", runMode : RunMode.Async)]
      public async Task ResumeSong() {
-          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          SocketVoiceChannel? targetChannel = (Context.User as SocketGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
@@ -136,7 +137,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("pause", "pauses the current song")]
      public async Task PauseSong() {
-          IVoiceChannel? targetChannel = (Context.User as IGuildUser)?.VoiceChannel;
+          SocketVoiceChannel? targetChannel = (Context.User as SocketGuildUser)?.VoiceChannel;
           if (targetChannel == null) {
                await RespondAsync("you are not in a voice channel");
                return;
