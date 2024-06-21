@@ -294,8 +294,8 @@ public class YTSearchAutocomplete : AutocompleteHandler {
 
           List<AutocompleteResult> AutoCompleteResults = new(MaxResults);
 
-          await ResultEnum.Take(MaxResults).ForEachAsync( (videoSearchResult) => {
-               AutoCompleteResults.Add(new AutocompleteResult(videoSearchResult.Title, videoSearchResult.Url));
+          await ResultEnum.Take(MaxResults).ForEachAsync( (videoSearchResult) => {  // 100 is the max field width for discord autocomplete fields
+               AutoCompleteResults.Add(new AutocompleteResult(videoSearchResult.Title.Substring(0, 100), videoSearchResult.Url));
           });
 
           return AutocompletionResult.FromSuccess(AutoCompleteResults);
