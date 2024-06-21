@@ -23,7 +23,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
      [SlashCommand("adwin", "toggle mute on adwin")]
      public async Task ToggleAdwinMute() {
-          IGuildUser? user = await TryGetAdwin();
+          SocketGuildUser? user = await TryGetAdwin();
 
           // check if adwin is in this server
           if (user == null) {
@@ -40,13 +40,14 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           await RespondAsync(success ? "done" : "failed to toggle. is he in a voice channel?");
      }
 
-     private async Task<IGuildUser?> TryGetAdwin() {
-          try {
-               return Context.Guild.GetUser(AdwinUserID) ?? await (Context.Guild as IGuild).GetUserAsync(AdwinUserID);
-          } catch {
-               Log.Debug("[Debug/TryGetAdwin] Exception when trying to get Adwin!!");
-               return null;
+     private async Task<SocketGuildUser?> TryGetAdwin() {
+          SocketGuildUser? Adwin = Context.Guild.GetUser(AdwinUserID); // try to get from user cach
+          if (Adwin == null) { // get info directly using rest call
+               IUser restAdwin = await (Context.Guild as IGuild).GetUserAsync(AdwinUserID);
+               Adwin = restAdwin as SocketGuildUser;
           }
+
+          return Adwin;
      }
 
      private async Task<bool> TryToggleMute(IGuildUser user) {
@@ -89,7 +90,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
                await RespondAsync("Bot is not connected to any voice Channel");
                return;
           }
-          if (Context.Guild.CurrentUser.VoiceChannel != (Context.User as IGuildUser)?.VoiceChannel) {
+          if (Context.Guild.CurrentUser.VoiceChannel != (Context.User as SocketGuildUser)?.VoiceChannel) {
                await RespondAsync("User is not in the same voice channel!");
                return;
           }
