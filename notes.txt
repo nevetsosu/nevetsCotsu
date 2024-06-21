@@ -1,6 +1,4 @@
 Next steps:
-     Work on the Voice State handlinng
-     Convert many IVoiceChannels and IGuildUsers to Socket versions
      Rework the Queue to be a Circular Buffer
      add in a clear command
      move command
