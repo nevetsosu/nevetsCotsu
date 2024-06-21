@@ -44,26 +44,30 @@ public class MP3Handler {
           }
     }
 
-     private VoiceStateManager _VoiceStateManager;
-     private MP3Queue SongQueue;
+     private readonly VoiceStateManager _VoiceStateManager;
+     private readonly MP3Queue SongQueue;
+     private readonly FFMPEGHandler _FFMPEGHandler;
      private PlayerStateData _PlayerStateData;
 
      public int QueueCount { get => SongQueue.Count; }
-     public bool Looping { get => SongQueue.Looping; }
+     public bool Looping => SongQueue.Looping;
+     public float Volume {
+          get => _FFMPEGHandler.Volume;
+          set => _FFMPEGHandler.Volume = value;
+     }
 
-     public MP3Handler(VoiceStateManager voiceStateManager) {
+     public MP3Handler(VoiceStateManager voiceStateManager, FFMPEGHandler? ffmpegHandler = null) {
           _VoiceStateManager = voiceStateManager;
           _PlayerStateData = new();
-          SongQueue = new();
+          _FFMPEGHandler = ffmpegHandler ?? new FFMPEGHandler();
+          SongQueue = new(_FFMPEGHandler);
      }
 
      public void ClearQueue() {
           SongQueue.Clear();
      }
 
-     public void Enqueue(MP3Entry entry) {
-          SongQueue.Enqueue(entry);
-     }
+     public void Enqueue(MP3Entry entry) => SongQueue.Enqueue(entry);
 
      // Pause will usually always succeed, but will return false if the player wasnt already playing something. other wise returns true
      public async Task<PlayerCommandStatus> Pause() {
@@ -161,7 +165,7 @@ public class MP3Handler {
           // preloaded again if the entry wasnt already preloaded
           if (entry.FFMPEG == null) {
                Log.Debug("Current Entry wasn't preloaded??? Attempting another load");
-               entry.FFMPEG = new FFMPEGHandler().TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
                if (entry.FFMPEG == null) return false; // if the preload doesnt work again
           }
 
@@ -261,6 +265,8 @@ public class MP3Handler {
           return BufferIndex / (48000 * 2 * 2); // bit rate * # channels * bit depth in bytes
      }
 
+     // public void SetVolume(float volume) => _FFMPEGHandler.SetVolume(volume);
+
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
           byte[] buffer = new byte[16];
 
@@ -314,10 +320,10 @@ public class MP3Handler {
           private MP3Entry? LoopingEntry;
           public bool Looping { get; private set; }
 
-          public MP3Queue() {
+          public MP3Queue(FFMPEGHandler? ffmpegHandler = null) {
                SongQueue = new();
                sem = new(1, 1);
-               _FFMPEGHandler = new();
+               _FFMPEGHandler = ffmpegHandler ?? new();
                SongQueueNextPreloaded = false;
                Looping = false;
                LoopingEntry = null;

@@ -35,11 +35,6 @@ class Program {
                Log.Fatal("Failed to acquire DISCORD_TOKEN as an environment variable");
                return;
           }
-          string? LOG_WEBHOOK_URL = Environment.GetEnvironmentVariable("LOG_WEBHOOK_URL");
-          if (string.IsNullOrEmpty(LOG_WEBHOOK_URL)) {
-               Log.Fatal("Failed to acquire LOG_WEBHOOK_URL as an environment variable");
-               return;
-          }
 
           // Setup Dependency Injection and Initialize Services
           ServiceProvider = new ServiceCollection()

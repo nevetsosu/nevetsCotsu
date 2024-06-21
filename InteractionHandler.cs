@@ -30,13 +30,11 @@ public class InteractionHandler {
      private readonly DiscordSocketClient Client;
      private readonly InteractionService Handler;
      private readonly IServiceProvider ServiceProvider;
-     private readonly ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
-     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider, ConcurrentDictionary<ulong, GuildData> guildDataDict) {
+     public InteractionHandler(DiscordSocketClient client, InteractionService handler, IServiceProvider serviceprovider) {
           Client = client;
           Handler = handler;
           ServiceProvider = serviceprovider;
-          GuildDataDict = guildDataDict;
      }
 
      public async Task InitializeAsync() {

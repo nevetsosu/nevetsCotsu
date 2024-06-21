@@ -4,9 +4,11 @@ using Serilog;
 public class FFMPEGHandler {
      public static float DefaultVolume = 0.5f;
      public float Volume {
-          get;
-          private set;
+          get => _Volume;
+          set => SetVolume(value);
      }
+
+     private float _Volume;
      private static readonly string StandardInIndicator = "pipe:0";
      private static readonly string StandardOutIndicator = "pipe:1";
 
@@ -15,7 +17,7 @@ public class FFMPEGHandler {
      }
 
      public void SetVolume(float volume) {
-          Volume = float.Clamp(volume, 0.0f, 1.0f);
+          _Volume = float.Clamp(volume, 0.0f, 1.0f);
      }
 
      public Process? TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f) {
@@ -54,7 +56,7 @@ public class FFMPEGHandler {
           return Process.Start(startInfo);
      }
 
-     public Process?TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f) {
+     public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "/bin/bash",
                UseShellExecute = false,
@@ -72,6 +74,7 @@ public class FFMPEGHandler {
           } else {
                outSource = outFilePath;
           }
+          Log.Debug("spawn youtube: using total volume: " + (Volume * baseVolume));
           startInfo.Arguments = $"-c \"yt-dlp --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
           return Process.Start(startInfo);
      }

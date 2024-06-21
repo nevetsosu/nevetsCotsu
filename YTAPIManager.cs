@@ -6,7 +6,7 @@ using YoutubeExplode.Search;
 using Serilog;
 
 public class YTAPIManager {
-     private YoutubeClient YTClient;
+     private readonly YoutubeClient YTClient;
      public YTAPIManager() {
           YTClient = new YoutubeClient();
      }

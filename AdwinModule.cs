@@ -8,7 +8,7 @@ using Serilog;
 public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
      public static bool AllowAdwin = true;
      public static readonly ulong AdwinUserID = 390610273892827136UL;
-     ConcurrentDictionary<ulong, GuildData> GuildDataDict;
+     readonly ConcurrentDictionary<ulong, GuildData> GuildDataDict;
 
      public AdwinModule(ConcurrentDictionary<ulong, GuildData> guildDataDict) {
 

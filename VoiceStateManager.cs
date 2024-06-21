@@ -6,7 +6,7 @@ using Discord.WebSocket;
 public class VoiceStateManager {
      public IAudioClient? AudioClient;
      public SocketVoiceChannel? ConnectedVoiceChannel;
-     private SemaphoreSlim Lock;
+     private readonly SemaphoreSlim Lock;
 
      public VoiceStateManager() {
           AudioClient = null;

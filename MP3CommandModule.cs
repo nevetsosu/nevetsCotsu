@@ -6,6 +6,7 @@ using System.Text;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Search;
 using Serilog;
+using System.Globalization;
 
 public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> {
      private ConcurrentDictionary<ulong, GuildData> GuildDataDict;
@@ -191,6 +192,11 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                }
           }
 
+          string AdditionalStatus;
+          if (guildData._MP3Handler.Looping) {
+               AdditionalStatus = " ``Looping``";
+          } else AdditionalStatus = string.Empty;
+
           StringBuilder strBuilder = new StringBuilder();
 
           List<MP3Handler.MP3Entry> QueueEntries = guildData._MP3Handler.GetQueueAsList();
@@ -205,7 +211,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                          .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
                          .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(data.RequestUser?.Mention ?? "``unknown``"))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
-                         .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``"));
+                         .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``{AdditionalStatus}"));
 
           if (QueueEntries.Count > 0)
                builder.AddField(new EmbedFieldBuilder().WithName("Queued Next").WithValue(strBuilder.ToString()));
@@ -237,12 +243,18 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                }
           }
 
+          string AdditionalStatus;
+          if (guildData._MP3Handler.Looping) {
+               Log.Debug("adding looping status");
+               AdditionalStatus = " ``Looping``";
+          } else AdditionalStatus = string.Empty;
+
           Embed embed = new EmbedBuilder()
                          .WithTitle("Now playing")
                          .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
                          .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(data.RequestUser?.Mention ?? "``unknown``"))
                          .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
-                         .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``"))
+                         .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``{AdditionalStatus}"))
                          .Build();
           await ModifyOriginalResponseAsync(m => { m.Content = ""; m.Embed = embed; });
      }
@@ -278,6 +290,25 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await ModifyOriginalResponseAsync(m => m.Content = "done");
      }
 
+     [SlashCommand("volume", "set the volume")]
+     public async Task Volume([Summary(description: "A number between 0 and 100"), MinValue(0), MaxValue(100)] int? volume = null) {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+
+          float Volume = guildData._MP3Handler.Volume;
+
+          if (volume == null) {
+               await RespondAsync($"Current Volume: {Volume * 100:0.}%");
+               return;
+          }
+
+          if (volume.Value > 100 || volume.Value < 0) {
+               Log.Error($"volume cannot be out of range of [0, 100]: {volume.Value}");
+               volume = int.Clamp(volume.Value, 0, 100);
+          }
+          guildData._MP3Handler.Volume = (float)volume.Value / 100;
+          await RespondAsync($"Changed volume from: {Volume * 100:0.}% to {guildData._MP3Handler.Volume * 100:0.}%");
+     }
+
 }
 
 public class YTSearchAutocomplete : AutocompleteHandler {
@@ -295,7 +326,8 @@ public class YTSearchAutocomplete : AutocompleteHandler {
           List<AutocompleteResult> AutoCompleteResults = new(MaxResults);
 
           await ResultEnum.Take(MaxResults).ForEachAsync( (videoSearchResult) => {  // 100 is the max field width for discord autocomplete fields
-               AutoCompleteResults.Add(new AutocompleteResult(videoSearchResult.Title.Substring(0, 100), videoSearchResult.Url));
+               string Title = videoSearchResult.Title;
+               AutoCompleteResults.Add(new AutocompleteResult(Title.Length > 100 ? Title.Substring(0, 100) : Title, videoSearchResult.Url));
           });
 
           return AutocompletionResult.FromSuccess(AutoCompleteResults);
