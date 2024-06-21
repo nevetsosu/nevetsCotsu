@@ -52,6 +52,7 @@ class Program {
                .BuildServiceProvider();
 
           DiscordSocketClient SocketClient = ServiceProvider.GetRequiredService<DiscordSocketClient>();
+          await SocketClient.SetGameAsync("Adwin", type: ActivityType.Watching);
 
           // Initialize Interaction Handler
           await ServiceProvider.GetRequiredService<InteractionHandler>().InitializeAsync();
