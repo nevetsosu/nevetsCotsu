@@ -40,7 +40,7 @@ public class VoiceStateManager {
                Log.Debug("Registering a new Audio Client");
                AudioClient = newAudioClient;
                ConnectedVoiceChannel = targetVoiceChannel;
-               AudioClient.Disconnected += OnDisconnectedAsync;
+               // AudioClient.Disconnected += OnDisconnectedAsync;
                AudioClient.ClientDisconnected += OnClientDisconnectAsync;
                if (OnDisconnectAsync != null) AudioClient.Disconnected += OnDisconnectAsync;
           } else {
@@ -52,7 +52,7 @@ public class VoiceStateManager {
           return newAudioClient;
      }
 
-     public async Task DisconnectAsync(IVoiceChannel voiceChannel) {
+     public async Task DisconnectAsync() {
           await Lock.WaitAsync();
           if (AudioClient != null) {
                try {
@@ -71,23 +71,34 @@ public class VoiceStateManager {
      }
 
      // call back for when the bot disconnects
-     public async Task OnDisconnectedAsync(Exception e) {
-          Log.Debug("reset voice state: " + e.Message);
+     // public async Task OnDisconnectedAsync(Exception e) {
+     //      Log.Debug("reset voice state: " + e.Message);
 
-          await Lock.WaitAsync();
-          ResetState();
-          Lock.Release();
-     }
+     //      // await Lock.WaitAsync();
+     //      // ResetState();
+     //      // Lock.Release();
+     // }
 
      // call back for when memebers of the same voice channel disconnect
      public async Task OnClientDisconnectAsync(ulong id) {
           Log.Debug("ClientDisconnected: id " + id);
           await Lock.WaitAsync();
 
+          Discord.WebSocket.SocketVoiceChannel? channel = ConnectedVoiceChannel as Discord.WebSocket.SocketVoiceChannel;
+
           // leave when the bot is the only one in the channnel
-          if (ConnectedVoiceChannel != null) {
-               int UserCount = await ConnectedVoiceChannel.GetUsersAsync().CountAsync();
-               Log.Debug("number of people remaining: " + UserCount.ToString());
+          if (channel != null) {
+               Log.Debug($"number of people remaining in channel {channel.Id}: {channel.ConnectedUsers.Count()}");
+
+               if (channel.ConnectedUsers.Count() <= 1) {
+                    // disconnect
+                    if (AudioClient != null) {
+                         try {
+                              await AudioClient.StopAsync();
+                         } catch {}
+                    }
+                    ResetState();
+               }
           }
 
           Lock.Release();

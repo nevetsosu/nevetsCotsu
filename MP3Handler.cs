@@ -256,7 +256,6 @@ public class MP3Handler {
                return BufferIndex;
           }
           BufferIndex = Interlocked.Read(ref _PlayerStateData.totalBytesWritten);
-
           _PlayerStateData.StateLock.Release();
           return BufferIndex / (48000 * 2 * 2); // bit rate * # channels * bit depth in bytes
      }

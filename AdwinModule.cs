@@ -95,7 +95,7 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
           await RespondAsync("Leaving...");
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
-          await guildData._VoiceStateManager.DisconnectAsync(Context.Guild.CurrentUser.VoiceChannel);
+          await guildData._VoiceStateManager.DisconnectAsync();
      }
 
      // private async Task<bool> TryLeaveVoiceChannel() {
