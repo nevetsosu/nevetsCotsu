@@ -11,7 +11,7 @@ using MP3Logic;
 namespace MP3Logic {
      public class MP3Handler;
 
-     public class MP3Entry{
+     public class MP3Entry : ICloneable {
           public string VideoID;
           public Process? FFMPEG;
           public Video? VideoData;
@@ -21,6 +21,10 @@ namespace MP3Logic {
                FFMPEG = ffmpeg;
                VideoData = videoData;
                RequestUser = requestUser;
+          }
+
+          public object Clone() {
+               return new MP3Entry(VideoID, RequestUser, FFMPEG, VideoData);
           }
     }
     public enum PlayerCommandStatus {
@@ -72,6 +76,8 @@ public class MP3Handler {
      public void Enqueue(MP3Entry entry) => SongQueue.Enqueue(entry);
      public void Remove(int index) => SongQueue.Remove(index);
      public void Swap(int IndexA, int IndexB) => SongQueue.Swap(IndexA, IndexB);
+     public void SkipTo(int index) => SongQueue.SkipTo(index);
+     public MP3Entry? GetEntry(int index) => SongQueue.GetEntry(index);
 
      // Pause will usually always succeed, but will return false if the player wasnt already playing something. other wise returns true
      public async Task<PlayerCommandStatus> Pause() {

@@ -353,6 +353,47 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync("cleared queue");
      }
 
+     [SlashCommand("skipto", "skip to the song in the queue, discarding all the songs before it")]
+     public async Task SkipTo([MinValue(1)] int index) {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+          try {
+               guildData._MP3Handler.SkipTo(index - 1);
+          } catch (ArgumentOutOfRangeException) {
+               Log.Debug("index was out of range????");
+               await RespondAsync("failed to skip to");
+               return;
+          }
+
+          await RespondAsync("skipped to");
+     }
+
+     [SlashCommand("info", "get info a queue entry")]
+     public async Task Info([MinValue(1)] int index) {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+          MP3Entry? entry;
+          try {
+               entry = guildData._MP3Handler.GetEntry(index - 1);
+          } catch (ArgumentOutOfRangeException) {
+               Log.Debug("index is out of range??");
+               await RespondAsync("invalid index");
+               return;
+          }
+
+          if (entry == null) {
+               await RespondAsync("Queue is empty");
+               return;
+          }
+
+          Embed embed = new EmbedBuilder()
+                         .WithTitle("Entry Info")
+                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{entry.VideoData?.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(entry.RequestUser?.Mention ?? "``unknown``"))
+                         .WithThumbnailUrl($"https://img.youtube.com/vi/{entry.VideoID}/default.jpg")
+                         .Build();
+
+          await RespondAsync(embed: embed);
+     }
+
 }
 
 public class YTSearchAutocomplete : AutocompleteHandler {

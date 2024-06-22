@@ -1,4 +1,4 @@
-Next steps: 
+Next steps:
      skipto command
      info command (information on a queue entry (like who queued it))
 
@@ -7,6 +7,7 @@ Next steps:
 
 
 For Later:
+go through and consider what should be exception and what should be return (through regular validation check)
 make the queue paged (figure out how to change the pages based on reaction)
 description command
 Rework the multi audio stream muxing ? A single entity that routes the audio streams

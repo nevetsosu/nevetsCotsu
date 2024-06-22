@@ -85,6 +85,23 @@ public class MP3Queue {
           }
      }
 
+     public void SkipTo(int index) {
+          sem.Wait();
+          if (index < 0) throw new ArgumentOutOfRangeException("index cannot be less than 0");
+          if (index >= Queue.Count) {
+               Queue.Clear();
+               sem.Release();
+               return;
+          }
+
+          int i = 0;
+          while (i++ < index) {
+               Queue.RemoveFirst();
+          }
+
+          sem.Release();
+     }
+
      public void Remove(int index) {
           sem.Wait();
           try {
@@ -92,6 +109,14 @@ public class MP3Queue {
           } finally {
                sem.Release();
           }
+     }
+
+     public MP3Entry? GetEntry(int index) {
+          if (Queue.Count == 0) return null;
+          if (index < 0 || index >= Queue.Count) throw new ArgumentOutOfRangeException("invalid index");
+
+          MP3Entry node = GetLinkedListNodeByIndex(index).Value;
+          return node.Clone() as MP3Entry;
      }
 
      // assumes sem is acquired
