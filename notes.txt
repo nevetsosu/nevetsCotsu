@@ -1,7 +1,4 @@
 Next steps:
-     skipto command
-     info command (information on a queue entry (like who queued it))
-
      lyrics command (requires new API)
      seek
 
