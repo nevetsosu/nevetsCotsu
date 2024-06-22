@@ -16,7 +16,7 @@ namespace MP3Logic {
           public Process? FFMPEG;
           public Video? VideoData;
           public SocketGuildUser? RequestUser;
-          public MP3Entry(string videoID, SocketGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null) {
+          public MP3Entry(string videoID, SocketGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null, TimeSpan startOffset = default) {
                VideoID = videoID;
                FFMPEG = ffmpeg;
                VideoData = videoData;
@@ -43,13 +43,14 @@ public class MP3Handler {
           public PlayerState CurrentState; // global to the mp3 handler instance
           public SemaphoreSlim StateLock; // global to the mp3 handler instance
           public CancellationTokenSource InterruptSource; // per mp3 instance
-          public long totalBytesWritten; // per song
+          public TimeSpan StartTime;
+          public long BytesWritten; // per song
           public PlayerStateData() {
                CurrentState = PlayerState.Idle;
                StateLock = new(1, 1);
                InterruptSource = new();
                CurrentPlayerTask = Task.CompletedTask;
-               totalBytesWritten = 0;
+               BytesWritten = 0;
                CurrentEntry = null;
           }
      }
@@ -101,6 +102,40 @@ public class MP3Handler {
           _PlayerStateData.CurrentState = PlayerState.Paused;
 
           _PlayerStateData.StateLock.Release();
+          return PlayerCommandStatus.Ok;
+     }
+
+     public async Task<PlayerCommandStatus> Seek(TimeSpan start) {
+          await _PlayerStateData.StateLock.WaitAsync();
+
+          // check if theres anything to play
+          if (_PlayerStateData.CurrentState != PlayerState.Playing) {
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.NotCurrentlyPlaying;
+          }
+
+          // gaurentee that no other player is going to be running at the same time
+          InterruptPlayer();
+          await _PlayerStateData.CurrentPlayerTask;
+
+          // check if the bot is still connected
+          SocketVoiceChannel? targetChannel = _VoiceStateManager.ConnectedVoiceChannel;
+          if (targetChannel == null || _PlayerStateData.CurrentEntry?.FFMPEG == null) {
+               _PlayerStateData.CurrentState = PlayerState.Paused;
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.Disconnected; // this is more likely to actually indicate the the bot hasnt connected for the first time yet
+          }
+
+          try {
+               _PlayerStateData.CurrentEntry.FFMPEG.Kill();
+          } catch {}
+
+          _PlayerStateData.StartTime = start;
+          _PlayerStateData.CurrentEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(_PlayerStateData.CurrentEntry.VideoID, null, 1.0f, start);
+
+          // play
+          _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel, _PlayerStateData.InterruptSource.Token));
+
           return PlayerCommandStatus.Ok;
      }
 
@@ -180,7 +215,7 @@ public class MP3Handler {
           }
 
           _PlayerStateData.CurrentEntry = entry;
-          _PlayerStateData.totalBytesWritten = 0;
+          _PlayerStateData.BytesWritten = 0;
           return true;
      }
 
@@ -251,12 +286,9 @@ public class MP3Handler {
                return null;
           }
 
-          // make a copy of the entry to avoid reflecting changes during other state changes
-          MP3Entry copy = new MP3Entry(entry.VideoID, entry.RequestUser, entry.FFMPEG, entry.VideoData);
-
           _PlayerStateData.StateLock.Release();
 
-          return copy;
+          return entry.Clone() as MP3Entry;
      }
 
      // returns the number of seconds (based on calculation from the byte stream) of data that have been copied out to discord from the source
@@ -270,9 +302,9 @@ public class MP3Handler {
                _PlayerStateData.StateLock.Release();
                return BufferIndex;
           }
-          BufferIndex = Interlocked.Read(ref _PlayerStateData.totalBytesWritten);
+          BufferIndex = Interlocked.Read(ref _PlayerStateData.BytesWritten);
           _PlayerStateData.StateLock.Release();
-          return BufferIndex / (48000 * 2 * 2); // bit rate * # channels * bit depth in bytes
+          return BufferIndex / (48000 * 2 * 2) + (long)_PlayerStateData.StartTime.TotalSeconds; // bit rate * # channels * bit depth in bytes
      }
 
      // public void SetVolume(float volume) => _FFMPEGHandler.SetVolume(volume);
@@ -289,7 +321,7 @@ public class MP3Handler {
                     return;
                }
 
-               Interlocked.Add(ref _PlayerStateData.totalBytesWritten, 16);
+               Interlocked.Add(ref _PlayerStateData.BytesWritten, 16);
                // write errors mean OperationCanceledException
                try {
                     await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);

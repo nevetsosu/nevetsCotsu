@@ -20,7 +20,7 @@ public class FFMPEGHandler {
           _Volume = float.Clamp(volume, 0.0f, 1.0f);
      }
 
-     public Process? TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f) {
+     public Process? TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "ffmpeg",
                UseShellExecute = false,
@@ -51,12 +51,12 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
 
-          startInfo.Arguments = $"-hide_banner -loglevel level+panic -progress output.log -i {inSource} -filter:a \"loudnorm, volume={Volume * baseVolume:0.00}\" -ac 2 -f s16le -ar 48000 {outSource}";
+          startInfo.Arguments = $"-hide_banner -loglevel level+panic -progress output.log -i {inSource} -filter:a \"loudnorm, volume={Volume * baseVolume:0.00}\" -ss {start} -ac 2 -f s16le -ar 48000 {outSource}";
           Log.Debug("Spawning ffmpeg with Arguments: " + startInfo.Arguments);
           return Process.Start(startInfo);
      }
 
-     public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f) {
+     public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "/bin/bash",
                UseShellExecute = false,
@@ -75,7 +75,7 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
           Log.Debug("spawn youtube: using total volume: " + (Volume * baseVolume));
-          startInfo.Arguments = $"-c \"yt-dlp --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
+          startInfo.Arguments = $"-c \"yt-dlp --downloader ffmpeg --downloader-args ffmpeg:\'-ss {start}\' --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
           return Process.Start(startInfo);
      }
 
