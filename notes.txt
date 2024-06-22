@@ -1,9 +1,5 @@
-Next steps:
-     Rework the Queue to be a Circular Buffer
-     add in a clear command
-     move command
+Next steps: 
      skipto command
-     remove command
      info command (information on a queue entry (like who queued it))
 
      lyrics command (requires new API)
@@ -11,5 +7,6 @@ Next steps:
 
 
 For Later:
+make the queue paged (figure out how to change the pages based on reaction)
 description command
 Rework the multi audio stream muxing ? A single entity that routes the audio streams

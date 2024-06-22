@@ -1,15 +1,15 @@
-using System.Collections.Concurrent;
 using Serilog;
 
 using MP3Logic;
+using AngleSharp.Common;
 
 namespace MP3Logic {
      public class MP3Queue;
 }
 
 public class MP3Queue {
-     public int Count { get => SongQueue.Count; }
-     private IndexableQueue<MP3Entry> SongQueue;
+     public int Count { get => Queue.Count; }
+     private LinkedList<MP3Entry> Queue;
      private FFMPEGHandler _FFMPEGHandler;
      private SemaphoreSlim sem;
      private bool SongQueueNextPreloaded;
@@ -17,7 +17,7 @@ public class MP3Queue {
      public bool Looping { get; private set; }
 
      public MP3Queue(FFMPEGHandler? ffmpegHandler = null) {
-          SongQueue = new();
+          Queue = new();
           sem = new(1, 1);
           _FFMPEGHandler = ffmpegHandler ?? new();
           SongQueueNextPreloaded = false;
@@ -26,7 +26,10 @@ public class MP3Queue {
      }
 
      public List<MP3Entry> EntryList() {
-          return SongQueue.ToList();
+          sem.Wait();
+          List<MP3Entry> list = Queue.ToList();
+          sem.Release();
+          return list;
      }
 
      public void Clear() {
@@ -34,48 +37,134 @@ public class MP3Queue {
 
           // kill preloaded audio if there is any
           MP3Entry? entry;
-          if  (SongQueue.TryPeek(out entry) && entry?.FFMPEG != null) {
+          if  (TryPeek(out entry) && entry?.FFMPEG != null) {
                try {
                     entry.FFMPEG.Kill();
                } catch {}
           }
-          SongQueue.Clear();
+          Queue.Clear();
 
           sem.Release();
+     }
+
+     // assumes the sem is already acquired
+     private bool TryPeek(out MP3Entry entry) {
+          entry = default!;
+
+          if (Queue.First == null) {
+               return false;
+          }
+          entry = Queue.First.ValueRef;
+
+          return true;
+     }
+
+     public void Swap(int IndexA, int IndexB) {
+          sem.Wait();
+          if (IndexA < 0 || IndexA >= Queue.Count) {
+               sem.Release();
+               throw new ArgumentOutOfRangeException("IndexA is out of range.");
+          }
+          if (IndexB < 0 || IndexB >= Queue.Count) {
+               sem.Release();
+               throw new ArgumentOutOfRangeException("IndexB is out of range.");
+          }
+          if (IndexA == IndexB) {
+               sem.Release();
+               return;
+          }
+          try {
+               LinkedListNode<MP3Entry> NodeA = GetLinkedListNodeByIndex(IndexA);
+               LinkedListNode<MP3Entry> NodeB = GetLinkedListNodeByIndex(IndexB);
+
+               MP3Entry tmp = NodeA.Value;
+               NodeA.Value = NodeB.Value;
+               NodeB.Value = tmp;
+          } finally {
+               sem.Release();
+          }
+     }
+
+     public void Remove(int index) {
+          sem.Wait();
+          try {
+               Queue.Remove(GetLinkedListNodeByIndex(index));
+          } finally {
+               sem.Release();
+          }
+     }
+
+     // assumes sem is acquired
+     private LinkedListNode<MP3Entry> GetLinkedListNodeByIndex(int index) {
+          if (index < 0 || index >= Queue.Count) throw new ArgumentOutOfRangeException("invalid index");
+          if (Queue.Count == 0) throw new InvalidOperationException("List is empty");
+
+          int OppositeIndex = Queue.Count - index - 1;
+          if (index <= OppositeIndex) {
+               return GetLinkedListNodeByIndexFromFirst(index);
+          } else return GetLinkedListNodeByIndexFromLast(OppositeIndex);
+     }
+
+     // assumes sem is acquired
+     private LinkedListNode<MP3Entry> GetLinkedListNodeByIndexFromFirst(int index) {
+          LinkedListNode<MP3Entry>? node = Queue.First!;
+          int i = 0;
+          while (i++ < index) {
+               node = node!.Next;
+          }
+          return node!;
+     }
+
+      // assumes sem is acquired
+     private LinkedListNode<MP3Entry> GetLinkedListNodeByIndexFromLast(int index) {
+          LinkedListNode<MP3Entry>? node = Queue.Last!;
+          if (node == null) throw new ();
+
+          int i = 0;
+          while (i++ < index) {
+               node = node!.Previous;
+          }
+          return node!;
      }
 
      public void Enqueue(MP3Entry entry) {
           Log.Debug("MP3Queue Adding entry with Video Title" + entry.VideoData?.Title);
           sem.Wait();
-          SongQueue.Enqueue(entry);
+
+          Queue.AddLast(entry);
           bool preloaded = TryPreloadNext();
           Log.Debug($"Is the queue currently preloaded?: {preloaded}");
+
           sem.Release();
      }
 
      public MP3Entry? TryDequeue() {
+          MP3Entry entry;
+
           sem.Wait();
-          MP3Entry? entry;
 
           // if looping, return the current looping entry and prepare a new looping entry
           if (Looping && LoopingEntry != null) {
                entry = LoopingEntry;
-               LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f));
+               LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
                sem.Release();
                return entry;
           }
 
-          // return the top entry and preload the next one
-          if (SongQueue.TryDequeue(out entry)) {
-               SongQueueNextPreloaded = false;
-               TryPreloadNext();
+          if (Queue.First == null) {
                sem.Release();
-               return entry;
+               return null;
           }
+
+          entry = Queue.First.Value;
+          Queue.RemoveFirst();
+
+          SongQueueNextPreloaded = false;
+          TryPreloadNext();
+
           sem.Release();
 
-          // null when queue is empty
-          return null;
+          return entry;
      }
 
      // returns whether there the top of the queue is preloaded (it may already be preloaded)
@@ -83,7 +172,7 @@ public class MP3Queue {
      private bool TryPreloadNext() {
           if (SongQueueNextPreloaded) return true;
           MP3Entry? entry;
-          if (SongQueue.TryPeek(out entry) && entry != null) {
+          if (TryPeek(out entry) && entry != null) {
                entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
                SongQueueNextPreloaded = true;
                return true;

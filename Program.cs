@@ -6,6 +6,8 @@ using System.Collections.Concurrent;
 using DotNetEnv;
 using Serilog;
 using Serilog.Enrichers.CallerInfo;
+using AngleSharp.Common;
+using Discord.Commands;
 
 class Program {
      private static IServiceProvider? ServiceProvider;
@@ -27,6 +29,9 @@ class Program {
                .Enrich.WithCallerInfo(includeFileInfo: true, assemblyPrefix: "dotnetDiscordBot", filePathDepth: 3)
                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}][{Method}] {Message}{NewLine}{Exception}")
                .CreateLogger();
+
+          // TestFunction();
+          // return;
 
           // Check and Set Env variables.
           Env.Load();
@@ -57,6 +62,31 @@ class Program {
           await SocketClient.StartAsync();
 
           await Task.Delay(Timeout.Infinite);
+     }
+
+     private static void TestFunction() {
+          LinkedList<TestClass> list = new();
+
+          list.AddFirst(new TestClass(0));
+          list.AddFirst(new TestClass(1));
+          list.AddFirst(new TestClass(2));
+          list.AddFirst(new TestClass(3));
+          list.AddFirst(new TestClass(4));
+
+          LinkedListNode<TestClass> first = list.First!;
+          LinkedListNode<TestClass> third = list.First!.Next!.Next!;
+
+
+          var tmp = first.Value;
+          first.Value = third.Value;
+          third.Value = tmp;
+
+          var Enum = list.Last;
+
+          while (Enum != null) {
+               Log.Debug(Enum.Value.Val.ToString());
+               Enum = Enum.Previous;
+          }
      }
 
      public class TestClass {

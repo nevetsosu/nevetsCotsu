@@ -55,8 +55,6 @@ public class MP3Handler {
      private readonly FFMPEGHandler _FFMPEGHandler;
      private PlayerStateData _PlayerStateData;
 
-     public int QueueCount { get => SongQueue.Count; }
-     public bool Looping => SongQueue.Looping;
      public float Volume {
           get => _FFMPEGHandler.Volume;
           set => _FFMPEGHandler.Volume = value;
@@ -68,12 +66,12 @@ public class MP3Handler {
           _FFMPEGHandler = ffmpegHandler ?? new FFMPEGHandler();
           SongQueue = new(_FFMPEGHandler);
      }
-
-     public void ClearQueue() {
-          SongQueue.Clear();
-     }
-
+     public int QueueCount => SongQueue.Count;
+     public bool Looping => SongQueue.Looping;
+     public void ClearQueue() => SongQueue.Clear();
      public void Enqueue(MP3Entry entry) => SongQueue.Enqueue(entry);
+     public void Remove(int index) => SongQueue.Remove(index);
+     public void Swap(int IndexA, int IndexB) => SongQueue.Swap(IndexA, IndexB);
 
      // Pause will usually always succeed, but will return false if the player wasnt already playing something. other wise returns true
      public async Task<PlayerCommandStatus> Pause() {
