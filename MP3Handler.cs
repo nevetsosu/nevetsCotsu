@@ -2,7 +2,6 @@ using Discord;
 using Discord.WebSocket;
 using Discord.Audio;
 using System.Diagnostics;
-using System.Collections.Concurrent;
 using YoutubeExplode.Videos;
 using Serilog;
 
@@ -126,10 +125,12 @@ public class MP3Handler {
                return PlayerCommandStatus.Disconnected; // this is more likely to actually indicate the the bot hasnt connected for the first time yet
           }
 
+          // kill the previous FFMPEG
           try {
                _PlayerStateData.CurrentEntry.FFMPEG.Kill();
           } catch {}
 
+          // Spawn new FFMPEG at seek location
           _PlayerStateData.StartTime = start;
           _PlayerStateData.CurrentEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(_PlayerStateData.CurrentEntry.VideoID, null, 1.0f, start);
 
@@ -211,11 +212,12 @@ public class MP3Handler {
           if (entry.FFMPEG == null) {
                Log.Debug("Current Entry wasn't preloaded??? Attempting another load");
                entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
-               if (entry.FFMPEG == null) return false; // if the preload doesnt work again
+               if (entry.FFMPEG == null) return false; // if the load doesnt work again
           }
 
           _PlayerStateData.CurrentEntry = entry;
           _PlayerStateData.BytesWritten = 0;
+          _PlayerStateData.StartTime = TimeSpan.Zero;
           return true;
      }
 
