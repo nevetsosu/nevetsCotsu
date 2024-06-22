@@ -311,6 +311,48 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync($"Changed volume from: {Volume * 100:0.}% to {guildData._MP3Handler.Volume * 100:0.}%");
      }
 
+     [SlashCommand("remove", "remove song from queue")]
+     public async Task Remove([MinValue(1)]int index) {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+          try {
+               guildData._MP3Handler.Remove(index - 1);
+               await RespondAsync("removed song");
+          } catch (InvalidOperationException) {
+               Log.Debug($"failed to remove index {index}: invalid operation (list is empty)");
+               await RespondAsync("no songs queued to remove");
+          } catch (ArgumentOutOfRangeException) {
+               Log.Debug($"failed to remove index {index}: ArgumentOutOfRangeException (out of range)");
+               await RespondAsync("index out of range");
+          } catch (Exception e) { 
+               Log.Error($"failed to remove index {index}: UNHANDLED IN REMOVE FUNCTION: " + e.Message);
+          }
+     }
+
+     [SlashCommand("move", "swap the position of two songs in the queue")]
+     public async Task Move([MinValue(1)] int IndexA, [MinValue(1)] int IndexB) {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+          if (IndexA == IndexB) {
+               await RespondAsync("both are the same song!");
+               return;
+          }
+
+          try {
+               guildData._MP3Handler.Swap(IndexA - 1, IndexB - 1);
+               await RespondAsync("swapped!");
+          } catch (Exception e) {
+               Log.Debug(e.ToString());
+               await RespondAsync("failed to swap. perhaps the indexes were out of range?");
+          }
+     }
+
+     [SlashCommand("clear", "clears the queue")]
+     public async Task Clear() {
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+          guildData._MP3Handler.ClearQueue();
+
+          await RespondAsync("cleared queue");
+     }
+
 }
 
 public class YTSearchAutocomplete : AutocompleteHandler {
