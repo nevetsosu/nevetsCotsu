@@ -6,8 +6,6 @@ using System.Collections.Concurrent;
 using DotNetEnv;
 using Serilog;
 using Serilog.Enrichers.CallerInfo;
-using AngleSharp.Common;
-using Discord.Commands;
 
 class Program {
      private static IServiceProvider? ServiceProvider;

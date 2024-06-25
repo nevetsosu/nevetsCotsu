@@ -28,7 +28,7 @@ public class VoiceStateManager {
           // try to open a new voice connection
           IAudioClient? newAudioClient;
           try {
-               newAudioClient = await targetVoiceChannel.ConnectAsync();
+               newAudioClient = await targetVoiceChannel.ConnectAsync(selfDeaf: true, selfMute: false);
           } catch (Exception e) {
                ResetState();
                Lock.Release();
