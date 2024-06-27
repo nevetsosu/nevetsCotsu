@@ -7,6 +7,6 @@ COPY dotnetDiscordBot.csproj .
 COPY dotnetDiscordBot.sln .
 COPY *.cs .
 
-RUN dotnet build .
+RUN dotnet build --configuration Release .
 
-ENTRYPOINT ["dotnet", "run", "."]
+ENTRYPOINT ["dotnet", "run", "--configuration", "Release", "."]
