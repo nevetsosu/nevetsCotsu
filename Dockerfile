@@ -1,4 +1,8 @@
 FROM ubuntu:latest
+
+ARG DISCORD_TOKEN
+ENV DISCORD_TOKEN ${DISCORD_TOKEN}
+
 WORKDIR /app
 
 RUN apt install libopus-dev ffmpeg dotnet-sdk-8.0
