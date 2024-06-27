@@ -7,4 +7,6 @@ COPY dotnetDiscordBot.csproj .
 COPY dotnetDiscordBot.sln .
 COPY *.cs .
 
-ENTRYPOINT dotnet run .
+RUN dotnet build .
+
+ENTRYPOINT ["dotnet", "run", "."]
