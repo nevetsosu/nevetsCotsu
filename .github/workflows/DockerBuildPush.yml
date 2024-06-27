@@ -22,11 +22,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v2
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/nevetscotsu:latest
+          tags: "nevetsosu/nevetscotsu:latest"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
