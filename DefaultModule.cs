@@ -12,7 +12,7 @@ public class DefaultModule : InteractionModuleBase<SocketInteractionContext> {
      [SlashCommand("ping", "respond with pong and latency")]
      public async Task Ping() {
           Embed embed = new EmbedBuilder()
-                    .WithTitle("Pong")
+                    .WithTitle("Pang")
                     .AddField(new EmbedFieldBuilder().WithName("Gateway Latency").WithValue($"{Context.Client.Latency}ms"))
                     .Build();
           await RespondAsync(embed: embed);

@@ -39,6 +39,6 @@ jobs:
         run: |
           # Define the Auto Scaling Group name
           asg_name="nevetsCotsu"
-          
+
           # Start an instance refresh to replace the instances with the latest Docker image
           aws autoscaling start-instance-refresh --auto-scaling-group-name $asg_name --preferences '{"InstanceWarmup": 60, "MinHealthyPercentage": 0}'
