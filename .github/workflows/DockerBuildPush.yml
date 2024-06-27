@@ -17,7 +17,7 @@ jobs:
       run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
     - name: Build Docker image
-      run: docker build --build-arg="DISCORD_TOKEN='${{ secrets.DISCORD_TOKEN }}'" -t ${{ secrets.DOCKERHUB_USERNAME }}/nevetscotsu:latest . 
+      run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/nevetscotsu:latest . 
 
     - name: Push Docker image to DockerHub
       run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/nevetscotsu:latest
