@@ -1,8 +1,4 @@
 FROM ubuntu:latest
-
-ARG DISCORD_TOKEN
-ENV DISCORD_TOKEN ${DISCORD_TOKEN}
-
 WORKDIR /app
 
 RUN apt update
@@ -11,4 +7,4 @@ COPY dotnetDiscordBot.csproj .
 COPY dotnetDiscordBot.sln .
 COPY *.cs .
 
-RUN dotnet run .
+ENTRYPOINT dotnet run .
