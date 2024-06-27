@@ -32,8 +32,8 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker buildx build --cache-from=/tmp/.buildx-cache -t nevetsosu/nevetscotsu:latest .
-          docker push nevetsosu/nevetscotsu:latest
+          docker buildx build --cache-from=/tmp/.buildx-cache -t nevetscotsu:latest .
+          docker push nevetscotsu:latest
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
