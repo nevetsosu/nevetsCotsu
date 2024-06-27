@@ -20,4 +20,4 @@ jobs:
       run: docker build --build-arg="DISCORD_TOKEN='${{ secrets.DISCORD_TOKEN }}'" -t ${{ secrets.DOCKERHUB_USERNAME }}/nevetscotsu:latest . 
 
     - name: Push Docker image to DockerHub
-      run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
+      run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/nevetscotsu:latest
