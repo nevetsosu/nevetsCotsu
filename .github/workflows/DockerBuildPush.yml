@@ -31,10 +31,9 @@ jobs:
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v2
-        with:
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/nevetscotsu:latest
+        run: |
+          docker buildx build --cache-from=/tmp/.buildx-cache -t nevetsosu/nevetscotsu:latest .
+          docker push nevetsosu/nevetscotsu:latest
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
