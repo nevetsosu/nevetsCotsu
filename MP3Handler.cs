@@ -15,7 +15,7 @@ namespace MP3Logic {
           public Process? FFMPEG;
           public Video? VideoData;
           public SocketGuildUser? RequestUser;
-          public MP3Entry(string videoID, SocketGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null, TimeSpan startOffset = default) {
+          public MP3Entry(string videoID, SocketGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null) {
                VideoID = videoID;
                FFMPEG = ffmpeg;
                VideoData = videoData;
