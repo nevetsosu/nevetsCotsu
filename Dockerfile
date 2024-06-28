@@ -3,7 +3,7 @@ WORKDIR /app
 
 # initial dependencies
 RUN apt update
-RUN apt install libopus-dev ffmpeg dotnet-sdk-8.0 -y
+RUN apt install wget libopus-dev ffmpeg dotnet-sdk-8.0 -y
 
 # yt-dlp
 RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O ~/.local/bin/yt-dlp &&\
