@@ -225,6 +225,12 @@ public class MP3Queue {
 
           // return if already not looping
           if (!Looping) {
+               if (LoopingEntry?.FFMPEG != null) {
+                    try {
+                         LoopingEntry.FFMPEG.Kill();
+                         LoopingEntry = null;
+                    } catch {}
+               }
                sem.Release();
                return;
           }
