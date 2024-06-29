@@ -18,4 +18,4 @@ COPY *.cs .
 
 RUN dotnet build --configuration Release .
 
-ENTRYPOINT ["dotnet", "run", "--configuration", "Release", "."]
+CMD ["dotnet", "run", "--configuration", "Release", "."]
