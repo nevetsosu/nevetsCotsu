@@ -122,8 +122,6 @@ public class FFMPEGHandler {
      }
      public static async Task CleanUpProcess(Process process) {
           try {
-               if (!process.HasExited) return;
-
                process.Kill(entireProcessTree: true);
                await process.WaitForExitAsync();
                process.Dispose();
