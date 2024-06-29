@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 WORKDIR /app
 RUN mkdir /app/bin
-ENV PATH "$PATH:/app/bin"
+ENV PATH="$PATH:/app/bin"
 
 # initial dependencies
 RUN apt update
