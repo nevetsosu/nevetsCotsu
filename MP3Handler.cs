@@ -135,6 +135,7 @@ public class MP3Handler {
 
           // Spawn new FFMPEG at seek location
           _PlayerStateData.StartTime = start;
+          Interlocked.And(ref _PlayerStateData.BytesWritten, 0);
           _PlayerStateData.CurrentEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(_PlayerStateData.CurrentEntry.VideoID, null, 1.0f, start);
 
           // play
