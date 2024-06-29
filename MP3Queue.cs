@@ -40,6 +40,7 @@ public class MP3Queue {
           if  (TryPeek(out entry) && entry?.FFMPEG != null) {
                try {
                     entry.FFMPEG.Kill();
+                    entry.FFMPEG.WaitForExit();
                } catch {}
           }
           Queue.Clear();
@@ -228,6 +229,7 @@ public class MP3Queue {
                if (LoopingEntry?.FFMPEG != null) {
                     try {
                          LoopingEntry.FFMPEG.Kill();
+                         LoopingEntry.FFMPEG.WaitForExit();
                          LoopingEntry = null;
                     } catch {}
                }
