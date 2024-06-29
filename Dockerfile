@@ -22,4 +22,4 @@ COPY *.cs .
 RUN dotnet build --configuration Release .
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["dotnet", "run", "--configuration", "Release", "."]
+CMD ["/app/bin/Release/net8.0/dotnetDiscordBot"]
