@@ -1,6 +1,6 @@
 Next steps:
+     performance tuning
      lyrics command (requires new API)
-     seek
 
 
 For Later:
