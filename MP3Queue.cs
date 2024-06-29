@@ -1,4 +1,5 @@
 // #define preload
+#undef preload
 
 using Serilog;
 
@@ -42,6 +43,7 @@ public class MP3Queue {
 
           // kill preloaded audio if there is any
           MP3Entry? entry;
+#if preload
           if  (TryPeek(out entry) && entry?.FFMPEG != null) {
                try {
                     entry.FFMPEG.Kill(entireProcessTree: true);
@@ -49,6 +51,7 @@ public class MP3Queue {
                     entry.FFMPEG.Dispose();
                } catch {}
           }
+#endif
           Queue.Clear();
 
           sem.Release();
@@ -164,9 +167,10 @@ public class MP3Queue {
           sem.Wait();
 
           Queue.AddLast(entry);
+#if preload
           bool preloaded = TryPreloadNext();
           Log.Debug($"Is the queue currently preloaded?: {preloaded}");
-
+#endif
           sem.Release();
      }
 
@@ -178,11 +182,16 @@ public class MP3Queue {
           // if looping, return the current looping entry and prepare a new looping entry
           if (Looping && LoopingEntry != null) {
                entry = LoopingEntry;
+#if preload
                LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+#else
+               LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
+#endif
                sem.Release();
                return entry;
           }
 
+#if preload
           if (LoopingEntry?.FFMPEG != null) {
                try {
                     LoopingEntry.FFMPEG.Kill(entireProcessTree: true);
@@ -191,6 +200,7 @@ public class MP3Queue {
                } catch {}
                LoopingEntry.FFMPEG = null;
           }
+#endif
 
           if (Queue.First == null) {
                sem.Release();
@@ -201,8 +211,8 @@ public class MP3Queue {
           Queue.RemoveFirst();
 #if preload
           SongQueueNextPreloaded = false;
-#endif
           TryPreloadNext();
+#endif
 
           sem.Release();
 
