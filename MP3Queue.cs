@@ -41,9 +41,9 @@ public class MP3Queue {
      public void Clear() {
           sem.Wait();
 
+#if preload
           // kill preloaded audio if there is any
           MP3Entry? entry;
-#if preload
           if  (TryPeek(out entry) && entry?.FFMPEG != null) {
                try {
                     entry.FFMPEG.Kill(entireProcessTree: true);
