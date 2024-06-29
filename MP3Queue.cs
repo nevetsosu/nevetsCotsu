@@ -1,5 +1,5 @@
-// #define preload
-#undef preload
+#define preload
+// #undef preload
 
 using Serilog;
 
@@ -45,11 +45,7 @@ public class MP3Queue {
           // kill preloaded audio if there is any
           MP3Entry? entry;
           if  (TryPeek(out entry) && entry?.FFMPEG != null) {
-               try {
-                    entry.FFMPEG.Kill(entireProcessTree: true);
-                    entry.FFMPEG.WaitForExit();
-                    entry.FFMPEG.Dispose();
-               } catch {}
+               Task.Run(() => FFMPEGHandler.CleanUpProcess(entry.FFMPEG));
           }
 #endif
           Queue.Clear();
@@ -193,11 +189,7 @@ public class MP3Queue {
 
 #if preload
           if (LoopingEntry?.FFMPEG != null) {
-               try {
-                    LoopingEntry.FFMPEG.Kill(entireProcessTree: true);
-                    LoopingEntry.FFMPEG.WaitForExit();
-                    LoopingEntry.FFMPEG.Dispose();
-               } catch {}
+               _ = Task.Run(() =>FFMPEGHandler.CleanUpProcess(LoopingEntry.FFMPEG));
                LoopingEntry.FFMPEG = null;
           }
 #endif

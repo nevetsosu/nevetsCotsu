@@ -120,4 +120,17 @@ public class FFMPEGHandler {
           }
           process.Dispose();
      }
+     public static async Task CleanUpProcess(Process process) {
+          try {
+               if (!process.HasExited) return;
+
+               process.Kill(entireProcessTree: true);
+               await process.WaitForExitAsync();
+               process.Dispose();
+          } catch (Exception e) {
+               Log.Warning("process was already disposed??" + e.Message);
+               return;
+          }
+
+     }
 }

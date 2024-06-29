@@ -126,12 +126,8 @@ public class MP3Handler {
           }
 
           // kill the previous FFMPEG
-          try {
-               _PlayerStateData.CurrentEntry.FFMPEG.Kill(entireProcessTree: true);
-               _PlayerStateData.CurrentEntry.FFMPEG.WaitForExit();
-               _PlayerStateData.CurrentEntry.FFMPEG.Dispose();
-               _PlayerStateData.CurrentEntry.FFMPEG = null;
-          } catch {}
+          _ = Task.Run( () => FFMPEGHandler.CleanUpProcess(_PlayerStateData.CurrentEntry.FFMPEG));
+          _PlayerStateData.CurrentEntry.FFMPEG = null;
 
           // Spawn new FFMPEG at seek location
           _PlayerStateData.StartTime = start;
@@ -180,11 +176,8 @@ public class MP3Handler {
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
           if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
-               try {
-                    _PlayerStateData.CurrentEntry.FFMPEG.Kill(entireProcessTree: true);
-                    _PlayerStateData.CurrentEntry.FFMPEG.WaitForExit();
-                    _PlayerStateData.CurrentEntry.FFMPEG.Dispose();
-               } catch {}
+               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(_PlayerStateData.CurrentEntry.FFMPEG));
+               _PlayerStateData.CurrentEntry.FFMPEG = null;
           }
 
           // try to load another song
@@ -255,9 +248,7 @@ public class MP3Handler {
                     try {
                          await CopyToAsync(input, output, token);
                          await output.FlushAsync();
-                         FFMPEG.Kill(entireProcessTree: true);
-                         FFMPEG.WaitForExit();
-                         FFMPEG.Dispose();
+                         _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
                     } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
                          _PlayerStateData.CurrentState = PlayerState.Paused;
                          return;
