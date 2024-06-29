@@ -312,21 +312,22 @@ public class MP3Handler {
      // public void SetVolume(float volume) => _FFMPEGHandler.SetVolume(volume);
 
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
-          byte[] buffer = new byte[16];
+          const int BUFFERSIZE = 4096;
+          byte[] buffer = new byte[BUFFERSIZE];
 
           while (true) {
                // read failures mean immediate exit
                try {
-                    await inputStream.ReadExactlyAsync(buffer, 0, 16); // no cancellation token here since using one could desync the totalBytesWritten count
+                    await inputStream.ReadExactlyAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
                } catch (Exception e) {
                     Log.Debug("UNEXPECTED READ FAIL: " + e.Message);
                     return;
                }
 
-               Interlocked.Add(ref _PlayerStateData.BytesWritten, 16);
+               Interlocked.Add(ref _PlayerStateData.BytesWritten, BUFFERSIZE);
                // write errors mean OperationCanceledException
                try {
-                    await outputStream.WriteAsync(buffer, 0, 16, token).ConfigureAwait(false);
+                    await outputStream.WriteAsync(buffer, 0, BUFFERSIZE, token).ConfigureAwait(false);
                } catch (OperationCanceledException e) {
                     Log.Debug("write canceled: " + e.Message);
                     throw new OperationCanceledException();
