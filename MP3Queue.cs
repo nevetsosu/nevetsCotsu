@@ -39,8 +39,9 @@ public class MP3Queue {
           MP3Entry? entry;
           if  (TryPeek(out entry) && entry?.FFMPEG != null) {
                try {
-                    entry.FFMPEG.Kill();
+                    entry.FFMPEG.Kill(entireProcessTree: true);
                     entry.FFMPEG.WaitForExit();
+                    entry.FFMPEG.Dispose();
                } catch {}
           }
           Queue.Clear();
@@ -179,9 +180,11 @@ public class MP3Queue {
 
           if (LoopingEntry?.FFMPEG != null) {
                try {
-                    LoopingEntry.FFMPEG.Kill();
+                    LoopingEntry.FFMPEG.Kill(entireProcessTree: true);
                     LoopingEntry.FFMPEG.WaitForExit();
+                    LoopingEntry.FFMPEG.Dispose();
                } catch {}
+               LoopingEntry.FFMPEG = null;
           }
 
           if (Queue.First == null) {
