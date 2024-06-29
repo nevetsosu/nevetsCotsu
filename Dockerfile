@@ -12,10 +12,14 @@ RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /ap
 RUN chmod a+rx /app/bin/yt-dlp  # Make executable
 RUN printenv PATH
 
+# for process management
+RUN apt install tini
+
 COPY dotnetDiscordBot.csproj .
 COPY dotnetDiscordBot.sln .
 COPY *.cs .
 
 RUN dotnet build --configuration Release .
 
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["dotnet", "run", "--configuration", "Release", "."]
