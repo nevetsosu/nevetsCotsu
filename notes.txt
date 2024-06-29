@@ -1,5 +1,6 @@
 Next steps:
      performance tuning
+     passthrough docker health checks to ec2 auto scale
      lyrics command (requires new API)
 
 
