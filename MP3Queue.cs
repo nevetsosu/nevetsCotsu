@@ -1,7 +1,8 @@
+// #define preload
+
 using Serilog;
 
 using MP3Logic;
-using AngleSharp.Common;
 
 namespace MP3Logic {
      public class MP3Queue;
@@ -12,7 +13,9 @@ public class MP3Queue {
      private LinkedList<MP3Entry> Queue;
      private FFMPEGHandler _FFMPEGHandler;
      private SemaphoreSlim sem;
+#if preload
      private bool SongQueueNextPreloaded;
+#endif
      private MP3Entry? LoopingEntry;
      public bool Looping { get; private set; }
 
@@ -20,7 +23,9 @@ public class MP3Queue {
           Queue = new();
           sem = new(1, 1);
           _FFMPEGHandler = ffmpegHandler ?? new();
+#if preload
           SongQueueNextPreloaded = false;
+#endif
           Looping = false;
           LoopingEntry = null;
      }
@@ -194,8 +199,9 @@ public class MP3Queue {
 
           entry = Queue.First.Value;
           Queue.RemoveFirst();
-
+#if preload
           SongQueueNextPreloaded = false;
+#endif
           TryPreloadNext();
 
           sem.Release();
@@ -206,14 +212,20 @@ public class MP3Queue {
      // returns whether there the top of the queue is preloaded (it may already be preloaded)
      // assumes that the sem is already acquired
      private bool TryPreloadNext() {
+#if preload
           if (SongQueueNextPreloaded) return true;
+#endif
           MP3Entry? entry;
           if (TryPeek(out entry) && entry != null) {
                entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+#if preload
                SongQueueNextPreloaded = true;
+#endif
                return true;
           }
+#if preload
           SongQueueNextPreloaded = false;
+#endif
           return false;
      }
 
@@ -225,8 +237,11 @@ public class MP3Queue {
                sem.Release();
                return;
           }
+#if preload
           LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
-
+#else
+          LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
+#endif
           Looping = true;
           sem.Release();
      }
