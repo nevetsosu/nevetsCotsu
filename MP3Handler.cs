@@ -128,6 +128,7 @@ public class MP3Handler {
           // kill the previous FFMPEG
           try {
                _PlayerStateData.CurrentEntry.FFMPEG.Kill();
+               _PlayerStateData.CurrentEntry.FFMPEG.WaitForExit();
           } catch {}
 
           // Spawn new FFMPEG at seek location
@@ -175,7 +176,10 @@ public class MP3Handler {
           // stop the current player and kill the audio process
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
-          if (_PlayerStateData.CurrentEntry?.FFMPEG != null) _PlayerStateData.CurrentEntry.FFMPEG.Kill();
+          if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
+               _PlayerStateData.CurrentEntry.FFMPEG.Kill();
+               _PlayerStateData.CurrentEntry.FFMPEG.WaitForExit();
+          }
 
           // try to load another song
           if (!TryPopQueue()) {
@@ -246,6 +250,7 @@ public class MP3Handler {
                          await CopyToAsync(input, output, token);
                          await output.FlushAsync();
                          FFMPEG.Kill();
+                         FFMPEG.WaitForExit();
                     } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
                          _PlayerStateData.CurrentState = PlayerState.Paused;
                          return;
