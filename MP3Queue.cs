@@ -177,6 +177,13 @@ public class MP3Queue {
                return entry;
           }
 
+          if (LoopingEntry?.FFMPEG != null) {
+               try {
+                    LoopingEntry.FFMPEG.Kill();
+                    LoopingEntry.FFMPEG.WaitForExit();
+               } catch {}
+          }
+
           if (Queue.First == null) {
                sem.Release();
                return null;
@@ -226,13 +233,6 @@ public class MP3Queue {
 
           // return if already not looping
           if (!Looping) {
-               if (LoopingEntry?.FFMPEG != null) {
-                    try {
-                         LoopingEntry.FFMPEG.Kill();
-                         LoopingEntry.FFMPEG.WaitForExit();
-                         LoopingEntry = null;
-                    } catch {}
-               }
                sem.Release();
                return;
           }
