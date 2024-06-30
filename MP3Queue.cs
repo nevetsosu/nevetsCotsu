@@ -12,7 +12,6 @@ namespace MP3Logic {
 public class MP3Queue {
      public int Count { get => Queue.Count; }
      private LinkedList<MP3Entry> Queue;
-     private FFMPEGHandler _FFMPEGHandler;
      private SemaphoreSlim sem;
 #if preload
      private bool SongQueueNextPreloaded;
@@ -20,10 +19,11 @@ public class MP3Queue {
      private MP3Entry? LoopingEntry;
      public bool Looping { get; private set; }
 
-     public MP3Queue(FFMPEGHandler? ffmpegHandler = null) {
+     private readonly YTAPIManager _YTAPIManager;
+     public MP3Queue(YTAPIManager? ytAPIManager = default) {
           Queue = new();
           sem = new(1, 1);
-          _FFMPEGHandler = ffmpegHandler ?? new();
+          _YTAPIManager = ytAPIManager ?? new();
           Looping = false;
           LoopingEntry = null;
 #if preload
@@ -44,9 +44,8 @@ public class MP3Queue {
 #if preload
           // kill preloaded audio if there is any
           MP3Entry? entry;
-          if  (TryPeek(out entry) && entry?.FFMPEG != null) {
-               System.Diagnostics.Process FFMPEG = entry.FFMPEG;
-               Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+          if (TryPeek(out entry) && entry.HasStream()) {
+               entry.DisposeStream();
           }
 #endif
           Queue.Clear();
@@ -184,17 +183,16 @@ public class MP3Queue {
                LoopingEntry = entry.Clone() as MP3Entry;
 #if preload
                if (LoopingEntry != null) {
-                    LoopingEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+                    LoopingEntry.SetStream(_YTAPIManager.GetAudioStream(entry.VideoID).Result);
                }
 #endif
                sem.Release();
                return entry;
           }
 #if preload
-          if (LoopingEntry?.FFMPEG != null) {
+          if (LoopingEntry != null && LoopingEntry.HasStream()) {
                Log.Debug("switching the Looping Entry");
-               System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
-               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+               LoopingEntry.DisposeStream();
                LoopingEntry = null;
           }
 #endif
@@ -223,9 +221,9 @@ public class MP3Queue {
 #if preload
      private bool TryPreloadNext() {
           if (SongQueueNextPreloaded) return true;
-          MP3Entry? entry;
-          if (TryPeek(out entry) && entry != null) {
-               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+          MP3Entry entry;
+          if (TryPeek(out entry) && !entry.HasStream()) {
+               entry.SetStream(_YTAPIManager.GetAudioStream(entry.VideoID).Result);
                SongQueueNextPreloaded = true;
                return true;
           }
@@ -244,15 +242,13 @@ public class MP3Queue {
           }
           if (LoopingEntry == null) Log.Debug("LoopinEntry is currently null on loop enable");
 #if preload
-          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, entry.VideoData, _YTAPIManager.GetAudioStream(entry.VideoID).Result);
 
           // stop preloading next in the queue when looping is on
           if (SongQueueNextPreloaded) {
                MP3Entry? e;
-               if (TryPeek(out e) && e.FFMPEG != null) {
-                    System.Diagnostics.Process FFMPEG = e.FFMPEG;
-                    _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
-                    entry.FFMPEG = null;
+               if (TryPeek(out e) && e.HasStream()) {
+                    e.DisposeStream();
                     SongQueueNextPreloaded = false;
                }
           }
@@ -274,9 +270,8 @@ public class MP3Queue {
 
 #if preload
           // remove the looping entry preload
-          if (LoopingEntry?.FFMPEG != null) {
-               System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
-               _ = Task.Run( () => FFMPEGHandler.CleanUpProcess(FFMPEG));
+          if (LoopingEntry != null && LoopingEntry.HasStream()) {
+              LoopingEntry.DisposeStream();
                LoopingEntry = null;
           }
 
