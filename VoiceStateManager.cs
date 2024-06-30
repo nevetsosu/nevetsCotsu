@@ -2,104 +2,162 @@ using Serilog;
 using Discord;
 using Discord.Audio;
 using Discord.WebSocket;
+using System.Diagnostics;
 
 public class VoiceStateManager {
-     public IAudioClient? AudioClient;
-     public SocketVoiceChannel? ConnectedVoiceChannel;
+     public class VoiceState {
+          public bool Connected {get; private set; }
+          public IAudioClient? _AudioClient;
+          public SocketVoiceChannel? _VoiceChannel;
+          public Task ConnectionTask;
+          public CancellationTokenSource InterruptSource;
+
+          public VoiceState() {
+               ConnectionTask = Task.CompletedTask;
+               ResetState();
+               InterruptSource = new CancellationTokenSource();
+          }
+
+          public void ResetState() {
+               Connected = false;
+               _AudioClient = null;
+               _VoiceChannel = null;
+          }
+
+          public void SetConnected(IAudioClient audioClient, SocketVoiceChannel voiceChannel) {
+               Connected = true;
+               _AudioClient = audioClient;
+               _VoiceChannel = voiceChannel;
+          }
+
+          public async Task Interrupt() {
+               InterruptSource.Cancel();
+               InterruptSource.Dispose();
+               InterruptSource = new CancellationTokenSource();
+               await ConnectionTask;
+          }
+
+          public SocketVoiceChannel GetVoiceChannel() {
+               if (_VoiceChannel == null) throw new Exception("Voice Channel cannot exist before connection is made");
+               return _VoiceChannel;
+          }
+
+          public IAudioClient GetAudioClient() {
+               if (_AudioClient == null) throw new Exception("AudioClient cannot exist before connection is made");
+               return _AudioClient;
+          }
+
+     }
+
+     private VoiceState State;
+     private readonly FFMPEGHandler ffmpegHandler;
+     private Process FFMPEG;
      private readonly SemaphoreSlim Lock;
 
      public VoiceStateManager() {
-          AudioClient = null;
-          ConnectedVoiceChannel = null;
+          State = new();
           Lock = new(1, 1);
+          ffmpegHandler = new FFMPEGHandler();
+
+          FFMPEG = ffmpegHandler.TrySpawnFFMPEG(null, null, 1.0f);
      }
 
-     public async Task<IAudioClient?> ConnectAsync(SocketVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
-          Log.Debug("Starting ConnectAsync");
+     public Stream GetInputStream() {
+          return FFMPEG.StandardOutput.BaseStream;
+     }
 
+     public async Task ConnectAsync(SocketVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
           await Lock.WaitAsync();
 
           // return the current AudioClient if already connected on the channel
-          if (AudioClient != null && AudioClient.ConnectionState == ConnectionState.Connected && ConnectedVoiceChannel == targetVoiceChannel) {
+          if (State.Connected && State._VoiceChannel == targetVoiceChannel) {
                Lock.Release();
-               return AudioClient;
+               return;
           }
 
+          State.ResetState();
+
           // try to open a new voice connection
-          IAudioClient? newAudioClient;
+          IAudioClient? AudioClient;
           try {
-               newAudioClient = await targetVoiceChannel.ConnectAsync(selfDeaf: true, selfMute: false);
+               AudioClient = await targetVoiceChannel.ConnectAsync();
           } catch (Exception e) {
-               ResetState();
                Lock.Release();
-               Log.Debug("Failed to connect to voice Channel: " + e.Message);
-               return null;
+               Log.Error("SocketVoiceChannel.ConnectAsync failed during the VoiceStateManager.ConnectAsync() process: " + e.Message);
+               return;
           }
 
           // update state
-          if (newAudioClient != null) {
-               Log.Debug("Registering a new Audio Client");
-               AudioClient = newAudioClient;
-               ConnectedVoiceChannel = targetVoiceChannel;
-               // AudioClient.Disconnected += OnDisconnectedAsync;
-               AudioClient.ClientDisconnected += OnClientDisconnectAsync;
-               if (OnDisconnectAsync != null) AudioClient.Disconnected += OnDisconnectAsync;
-          } else {
-               ResetState();
+          if (AudioClient == null) {
+               Lock.Release();
+               Log.Error("SocketVoiceChannel.ConnectAsync came back as null");
+               return;
           }
 
-          Lock.Release();
+          // Set Event Handlers
+          AudioClient.ClientDisconnected += OnClientDisconnectAsync;
 
-          return newAudioClient;
+          // Set State
+          State.SetConnected(AudioClient, targetVoiceChannel);
+
+          // Start FFMPEG to Discord Connnection Handler
+          State.ConnectionTask = Task.Run(() => HandleConnection(AudioClient, FFMPEG.StandardOutput.BaseStream));
+
+          Lock.Release();
      }
 
+     // copies from ffpmeg to discord
+     // if interrupted using Interrupt(), should be awaited to make sure changes to state don't conflict
+     private async Task HandleConnection(IAudioClient AudioClient, Stream FFMPEGStream) {
+          using (Stream DiscordStream = AudioClient.CreateDirectPCMStream(AudioApplication.Mixed)) {
+               try {
+                    await FFMPEGStream.CopyToAsync(DiscordStream, State.InterruptSource.Token); // replace this with my custom copy to know when a read or write fails
+               } catch (OperationCanceledException e) {
+                    Log.Debug("FFMPEG to Discord copy canceled: " + e.Message);
+               } catch (Exception e) {
+                    Log.Warning("FFMPEG to Discord unexpectedly interrupted: " + e.ToString());
+               }
+          }
+
+          State.ResetState();
+     }
+
+     // acquires sem and disconnects
      public async Task DisconnectAsync() {
           await Lock.WaitAsync();
-          if (AudioClient != null) {
-               try {
-                    await AudioClient.StopAsync();
-               } catch {}
-          }
-          ResetState();
+
+          await NoSemDisconnectAsync(State.GetAudioClient()); 
 
           Lock.Release();
      }
 
-     // this should only be called when the StateLock is already acquired
-     private void ResetState() {
-          AudioClient = null;
-          ConnectedVoiceChannel = null;
+     // assumes sem is already acquired
+     private async Task NoSemDisconnectAsync(IAudioClient audioClient) {
+          await State.Interrupt();
+          await TryStopAsync(audioClient);
      }
 
-     // call back for when the bot disconnects
-     // public async Task OnDisconnectedAsync(Exception e) {
-     //      Log.Debug("reset voice state: " + e.Message);
-
-     //      // await Lock.WaitAsync();
-     //      // ResetState();
-     //      // Lock.Release();
-     // }
+     // assume sem is already acquired
+     private async Task TryStopAsync(IAudioClient audioClient) {
+          try {
+               await audioClient.StopAsync();
+          } catch (Exception e) {
+               Log.Warning("tried to call IAudioClient.StopAsync but failed. perhaps its already disconnected?" + e.ToString());
+          }
+     }
 
      // call back for when memebers of the same voice channel disconnect
-     public async Task OnClientDisconnectAsync(ulong id) {
+     private async Task OnClientDisconnectAsync(ulong id) {
           Log.Debug("ClientDisconnected: id " + id);
           await Lock.WaitAsync();
 
-          // leave when the bot is the only one in the channnel
-          if (ConnectedVoiceChannel != null) {
-               int count = ConnectedVoiceChannel.ConnectedUsers.Count();
-               Log.Debug($"number of people remaining in channel {ConnectedVoiceChannel.Id}: {count}");
+          IAudioClient AudioClient = State.GetAudioClient();
+          SocketVoiceChannel VoiceChannel = State.GetVoiceChannel();
+          int UserCount = VoiceChannel.ConnectedUsers.Count();
 
-               if (count <= 1) {
-                    // disconnect
-                    if (AudioClient != null) {
-                         try {
-                              await AudioClient.StopAsync();
-                         } catch {}
-                    }
-                    ResetState();
-               }
-          }
+          Log.Debug($"# Remaining in Channel {VoiceChannel.Id}: {UserCount}");
+
+          if (UserCount <= 1) await NoSemDisconnectAsync(State.GetAudioClient());
 
           Lock.Release();
      }
