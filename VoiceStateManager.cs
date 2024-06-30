@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 public class VoiceStateManager {
      public class VoiceState {
-          public bool Connected {get; private set; }
+          public bool Connected { get; private set; }
           public IAudioClient? _AudioClient;
           public SocketVoiceChannel? _VoiceChannel;
           public Task ConnectionTask;
