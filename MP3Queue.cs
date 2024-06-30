@@ -24,11 +24,11 @@ public class MP3Queue {
           Queue = new();
           sem = new(1, 1);
           _FFMPEGHandler = ffmpegHandler ?? new();
+          Looping = false;
+          LoopingEntry = null;
 #if preload
           SongQueueNextPreloaded = false;
 #endif
-          Looping = false;
-          LoopingEntry = null;
      }
 
      public List<MP3Entry> EntryList() {
@@ -181,19 +181,19 @@ public class MP3Queue {
                entry = LoopingEntry;
                LoopingEntry = entry.Clone() as MP3Entry;
 #if preload
-          if (LoopingEntry != null) {
-               LoopingEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
-          }
+               if (LoopingEntry != null) {
+                    LoopingEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+               }
 #endif
                sem.Release();
                return entry;
           }
-
 #if preload
           if (LoopingEntry?.FFMPEG != null) {
+               Log.Debug("switching the Looping Entry");
                System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
                _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
-               LoopingEntry.FFMPEG = null;
+               LoopingEntry = null;
           }
 #endif
 
@@ -205,8 +205,10 @@ public class MP3Queue {
           entry = Queue.First.Value;
           Queue.RemoveFirst();
 #if preload
-          SongQueueNextPreloaded = false;
-          TryPreloadNext();
+          if (!Looping) {
+               SongQueueNextPreloaded = false;
+               TryPreloadNext();
+          }
 #endif
 
           sem.Release();
@@ -238,8 +240,19 @@ public class MP3Queue {
                sem.Release();
                return;
           }
+          if (LoopingEntry == null) Log.Debug("LoopinEntry is currently null on loop enable");
 #if preload
           LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+
+          // stop preloading next in the queue when looping is on
+          if (SongQueueNextPreloaded) {
+               MP3Entry? e;
+               if (TryPeek(out e) && e.FFMPEG != null) {
+                    _ = Task.Run( () => FFMPEGHandler.CleanUpProcess(e.FFMPEG));
+                    entry.FFMPEG = null;
+                    SongQueueNextPreloaded = false;
+               }
+          }
 #else
           LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
 #endif
@@ -256,6 +269,12 @@ public class MP3Queue {
                return;
           }
 
+#if preload
+          // preload next in queue
+          if (!SongQueueNextPreloaded) {
+               TryPreloadNext();
+          } else Log.Warning("next song in the queue is already said to be preloaed after a loop disable??");
+#endif
           Looping = false;
           sem.Release();
      }
