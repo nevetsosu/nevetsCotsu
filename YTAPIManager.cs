@@ -12,7 +12,7 @@ public class YTAPIManager {
           YTClient = new YoutubeClient();
      }
 
-          public async Task<Video?> GetVideoData(string videoID) {
+     public async Task<Video?> GetVideoData(string videoID) {
           return await YTClient.Videos.GetAsync(new VideoId(videoID));
      }
 
