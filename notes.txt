@@ -1,4 +1,6 @@
 Next steps:
+     switch youtube downloader to YoutubeExplode for getting youtube streams, only requires one FFMPEG for volume normalization and volume control 
+     consider switching ffmpeg to local code
      performance tuning
      passthrough docker health checks to ec2 auto scale
      lyrics command (requires new API)
