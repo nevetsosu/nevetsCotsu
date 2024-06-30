@@ -165,8 +165,10 @@ public class MP3Queue {
 
           Queue.AddLast(entry);
 #if preload
-          bool preloaded = TryPreloadNext();
-          Log.Debug($"Is the queue currently preloaded?: {preloaded}");
+          if (!Looping) {
+               bool preloaded = TryPreloadNext();
+               Log.Debug($"Is the queue currently preloaded?: {preloaded}");
+          } else Log.Debug("not attempting to preload since its looping right now");
 #endif
           sem.Release();
      }
@@ -248,7 +250,8 @@ public class MP3Queue {
           if (SongQueueNextPreloaded) {
                MP3Entry? e;
                if (TryPeek(out e) && e.FFMPEG != null) {
-                    _ = Task.Run( () => FFMPEGHandler.CleanUpProcess(e.FFMPEG));
+                    System.Diagnostics.Process FFMPEG = e.FFMPEG;
+                    _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
                     entry.FFMPEG = null;
                     SongQueueNextPreloaded = false;
                }
@@ -270,6 +273,13 @@ public class MP3Queue {
           }
 
 #if preload
+          // remove the looping entry preload
+          if (LoopingEntry?.FFMPEG != null) {
+               System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
+               _ = Task.Run( () => FFMPEGHandler.CleanUpProcess(FFMPEG));
+               LoopingEntry = null;
+          }
+
           // preload next in queue
           if (!SongQueueNextPreloaded) {
                TryPreloadNext();

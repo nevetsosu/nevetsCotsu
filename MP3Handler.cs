@@ -177,6 +177,7 @@ public class MP3Handler {
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
           if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
+               Log.Debug("clean previous entry process");
                Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
                _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
                _PlayerStateData.CurrentEntry.FFMPEG = null;
