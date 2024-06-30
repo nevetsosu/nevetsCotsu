@@ -91,6 +91,7 @@ public class YTAPIManager {
           Log.Debug($"Choose stream URL: {AudioStreamInfo.Url}");
 
           Stream stream = await YTClient.Videos.Streams.GetAsync(AudioStreamInfo);
+
           return stream;
      }
 

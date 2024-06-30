@@ -23,7 +23,7 @@ public class FFMPEGHandler {
      // possible exceptions:
      // FileNotFound (input file or output file)
      // Generic Exception (Process fails to start or spawn)
-     public Process TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
+     public Process TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "ffmpeg",
                UseShellExecute = false,
@@ -51,7 +51,8 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
 
-          startInfo.Arguments = $"-hide_banner -loglevel level+panic -progress output.log -i {inSource} -filter:a \"loudnorm, volume={Volume * baseVolume:0.00}\" -ss {start} -ac 2 -f s16le -ar 48000 {outSource}";
+          startInfo.Arguments = $"-hide_banner -loglevel level+debug -progress output.log -i {inSource} -af loudnorm,volume={Volume * baseVolume:0.00} -ac 2 -f s16le -ar 48000 {outSource}";
+          // startInfo.Arguments = $"-hide_banner -loglevel level+verbose -progress output.log -i {inSource} -ac 2 -f s16le -ar 48000 {outSource}";
           Log.Debug("Spawning ffmpeg with Arguments: " + startInfo.Arguments);
           Process? ret = Process.Start(startInfo);
           if (ret == null) throw new Exception("Failed to spawn FFMPEG process");

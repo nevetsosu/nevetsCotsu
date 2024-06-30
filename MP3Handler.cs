@@ -124,11 +124,13 @@ public class MP3Handler {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.EmptyQueue; // this actually serves as a "not currently playing" error
           }
+          await _VoiceStateManager.StopTransmission();
+          _PlayerStateData.CurrentState = PlayerState.Paused;
 
           // Pause
-          InterruptPlayer();
-          await _PlayerStateData.CurrentPlayerTask;
-          _PlayerStateData.CurrentState = PlayerState.Paused;
+          // InterruptPlayer();
+          // await _PlayerStateData.CurrentPlayerTask;
+          // _PlayerStateData.CurrentState = PlayerState.Paused;
 
           _PlayerStateData.StateLock.Release();
           return PlayerCommandStatus.Ok;
@@ -170,6 +172,7 @@ public class MP3Handler {
      }
 
      public async Task<PlayerCommandStatus> TryPlay(SocketVoiceChannel targetChannel, MP3Entry? entry = null) {
+          Log.Debug("Entering try play");
           await _PlayerStateData.StateLock.WaitAsync();
           // queue as long as the VideoID is not null
           if (!string.IsNullOrEmpty(entry?.VideoID)) {
@@ -182,19 +185,28 @@ public class MP3Handler {
                return PlayerCommandStatus.Already;
           }
 
+          Log.Debug("Popping Queue");
           // check if theres anything to play
-          if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
+          if (_PlayerStateData.CurrentState == PlayerState.Paused) {
+               await _VoiceStateManager.ResumeTransmission();
+               _PlayerStateData.CurrentState = PlayerState.Playing;
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.Ok;
+          } else if (!await TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.EmptyQueue;
           }
 
+          Log.Debug("stopping old player");
           // gaurentee that no other player is going to be running at the same time
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
 
+          Log.Debug("starting new player");
           // play
           _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel, _PlayerStateData.InterruptSource.Token));
 
+          Log.Debug("finished starting new player");
           return PlayerCommandStatus.Ok; // this return is not given back fast until the player stops
      }
 
@@ -254,25 +266,35 @@ public class MP3Handler {
 
      // state lock should already be acquired on call
      private async Task StartPlayer(SocketVoiceChannel targetChannnel, CancellationToken token) {
+          Log.Debug("Entering start new player");
           // return if failed to get AudioClient
-          await _VoiceStateManager.ConnectAsync(targetChannnel, OnDisconnectAsync);
+          await _VoiceStateManager.ConnectAsync(targetChannnel);
+          await _VoiceStateManager.RefreshFFMPEG();
+          Log.Debug("finished connecting");
+
           Stream OutputStream = _VoiceStateManager.GetInputStream();
+
+          Log.Debug("acquired ffmpeg input stream");
+
           Stream? InputStream = _PlayerStateData.CurrentEntry?.Stream;
           if (InputStream == null) {
                Log.Error("input stream is null, exiting player");
                _PlayerStateData.StateLock.Release();
                return;
           }
+           Log.Debug("Entering player cycle");
           do {
                _PlayerStateData.CurrentState = PlayerState.Playing;
                _PlayerStateData.StateLock.Release();
 
                // main player time spent
+               Log.Debug("mp3 player copy start");
                try {
                     await CopyToAsync(InputStream, OutputStream, token);
                     await OutputStream.FlushAsync();
-                    InputStream.Dispose();
+                    Log.Debug("mp3 player copy start end");
                } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
+                    Log.Debug("operation canceled");
                     _PlayerStateData.CurrentState = PlayerState.Paused;
                     return;
                } catch (Exception e) {
@@ -288,16 +310,17 @@ public class MP3Handler {
           // natural player exit (the queue has become empty)
           _PlayerStateData.CurrentState = PlayerState.Idle;
           _PlayerStateData.StateLock.Release();
+          Log.Debug("exiting on empty queue");
      }
 
      public List<MP3Entry> GetQueueAsList() {
           return SongQueue.EntryList();
      }
 
-     private async Task OnDisconnectAsync(Exception e) {
-          Log.Debug("[Debug/MP3Handler/OnDisconnectAsync] Triggered");
-          await Task.CompletedTask;
-     }
+     // private async Task OnDisconnectAsync(Exception e) {
+     //      Log.Debug("[Debug/MP3Handler/OnDisconnectAsync] Triggered");
+     //      await Task.CompletedTask;
+     // }
 
      public async Task<MP3Entry?> NowPlaying() {
           await _PlayerStateData.StateLock.WaitAsync();
@@ -337,27 +360,27 @@ public class MP3Handler {
      // public void SetVolume(float volume) => _FFMPEGHandler.SetVolume(volume);
 
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
-          const int BUFFERSIZE = 4096;
+          const int BUFFERSIZE = 8192;
           byte[] buffer = new byte[BUFFERSIZE];
-
+          int red;
           while (true) {
                // read failures mean immediate exit
                try {
-                    await inputStream.ReadAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
+                    red = await inputStream.ReadAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
                } catch (Exception e) {
-                    Log.Debug("UNEXPECTED READ FAIL: " + e.Message);
+                    Log.Debug("UNEXPECTED READ FAIL: " + e.ToString());
                     return;
                }
 
                Interlocked.Add(ref _PlayerStateData.BytesWritten, BUFFERSIZE);
                // write errors mean OperationCanceledException
                try {
-                    await outputStream.WriteAsync(buffer, 0, BUFFERSIZE, token).ConfigureAwait(false);
+                    await outputStream.WriteAsync(buffer, 0, red, token);
                } catch (OperationCanceledException e) {
                     Log.Debug("write canceled: " + e.Message);
                     throw new OperationCanceledException();
                } catch (Exception e) {
-                    Log.Debug("UNEXPECTED WRITE FAIL: " + e.Message);
+                    Log.Debug("UNEXPECTED WRITE FAIL: " + e.ToString());
                     throw new OperationCanceledException(token);
                }
           }
