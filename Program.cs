@@ -14,11 +14,11 @@ class Program {
      {
           GatewayIntents = GatewayIntents.GuildVoiceStates | GatewayIntents.GuildMembers | GatewayIntents.Guilds,
           AlwaysDownloadUsers = true,
-          LogLevel = LogSeverity.Warning,
+          LogLevel = LogSeverity.Verbose,
      };
 
      private static readonly InteractionServiceConfig ServiceConfig = new() {
-          LogLevel = LogSeverity.Debug,
+          LogLevel = LogSeverity.Verbose,
      };
 
      public static async Task Main(string[] args) {
