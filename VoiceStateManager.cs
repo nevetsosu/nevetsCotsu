@@ -45,12 +45,12 @@ public class VoiceStateManager {
                if (_AudioClient == null) throw new Exception("AudioClient cannot exist before connection is made");
                return _AudioClient;
           }
-
      }
 
      private VoiceState State;
      private readonly FFMPEGHandler _FFMPEGHandler;
      private Process FFMPEG;
+     public bool Connected => State.Connected;
      private readonly SemaphoreSlim Lock;
 
      public VoiceStateManager(FFMPEGHandler? ffmpegHandler = default) {
@@ -58,7 +58,7 @@ public class VoiceStateManager {
           Lock = new(1, 1);
           _FFMPEGHandler = ffmpegHandler ?? new();
 
-          FFMPEG = _FFMPEGHandler.TrySpawnFFMPEG(null, null, 1.0f);
+          FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG("Mwn9CaDH9CA", null, 1.0f);
      }
 
      public SocketVoiceChannel? GetVoiceChannel() {
@@ -69,7 +69,7 @@ public class VoiceStateManager {
 
      }
      public Stream GetInputStream() {
-          return FFMPEG.StandardOutput.BaseStream;
+          return FFMPEG.StandardInput.BaseStream;
      }
 
      public async Task ConnectAsync(SocketVoiceChannel targetVoiceChannel, Func <Exception, Task>? OnDisconnectAsync = null) {
@@ -82,6 +82,7 @@ public class VoiceStateManager {
           }
 
           State.ResetState();
+          await State.Interrupt();
 
           // try to open a new voice connection
           IAudioClient? AudioClient;
@@ -107,22 +108,25 @@ public class VoiceStateManager {
           State.SetConnected(AudioClient, targetVoiceChannel);
 
           // Start FFMPEG to Discord Connnection Handler
-          State.ConnectionTask = Task.Run(() => HandleConnection(AudioClient, FFMPEG.StandardOutput.BaseStream));
+          State.ConnectionTask = Task.Run(() => HandleConnection(AudioClient, FFMPEG));
 
           Lock.Release();
      }
 
      // copies from ffpmeg to discord
      // if interrupted using Interrupt(), should be awaited to make sure changes to state don't conflict
-     private async Task HandleConnection(IAudioClient AudioClient, Stream FFMPEGStream) {
-          using (Stream DiscordStream = AudioClient.CreateDirectPCMStream(AudioApplication.Mixed)) {
+     private async Task HandleConnection(IAudioClient AudioClient, Process FFMPEG) {
+          Stream stream = FFMPEG.StandardOutput.BaseStream;
+          using (var DiscordStream = AudioClient.CreateDirectPCMStream(AudioApplication.Mixed)) {
+               Log.Debug("starting ffmpeg to discord copy");
                try {
-                    await FFMPEGStream.CopyToAsync(DiscordStream, State.InterruptSource.Token); // replace this with my custom copy to know when a read or write fails
+                    await stream.CopyToAsync(DiscordStream, State.InterruptSource.Token); // replace this with my custom copy to know when a read or write fails
                } catch (OperationCanceledException e) {
                     Log.Debug("FFMPEG to Discord copy canceled: " + e.Message);
                } catch (Exception e) {
                     Log.Warning("FFMPEG to Discord unexpectedly interrupted: " + e.ToString());
                }
+               Log.Debug("ffmpeg to discord copy stopped");
           }
 
           State.ResetState();

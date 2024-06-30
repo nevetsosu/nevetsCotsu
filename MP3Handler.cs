@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using Discord.Audio;
 using System.Diagnostics;
 using YoutubeExplode.Videos;
+using YoutubeExplode;
 using Serilog;
 
 using MP3Logic;
@@ -11,11 +12,11 @@ namespace MP3Logic {
      public class MP3Handler;
 
      public class MP3Entry : ICloneable {
-          public string VideoID;
+          public VideoId VideoID;
           public Video VideoData;
-          public SocketGuildUser RequestUser;
+          public SocketGuildUser? RequestUser;
           public Stream? Stream;
-          public MP3Entry(string videoID, SocketGuildUser requestUser, Video videoData, Stream? stream = null) {
+          public MP3Entry(string videoID, SocketGuildUser? requestUser, Video videoData, Stream? stream = null) {
                VideoID = videoID;
                VideoData = videoData;
                RequestUser = requestUser;
@@ -182,7 +183,7 @@ public class MP3Handler {
           }
 
           // check if theres anything to play
-          if (_PlayerStateData.CurrentState != PlayerState.Paused && !TryPopQueue()) {
+          if (_PlayerStateData.CurrentState != PlayerState.Paused && !await TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.EmptyQueue;
           }
@@ -209,7 +210,7 @@ public class MP3Handler {
           }
 
           // try to load another song
-          if (!TryPopQueue()) {
+          if (!await TryPopQueue()) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.EmptyQueue; // Empty Queue
@@ -235,14 +236,14 @@ public class MP3Handler {
      }
 
      // should be called with the state lock acquired
-     private bool TryPopQueue() {
+     private async Task<bool> TryPopQueue() {
           MP3Entry? entry;
           if ((entry = SongQueue.TryDequeue()) == null) return false;
 
           // load again if the entry wasnt already preloaded
           if (entry.Stream == null) {
                Log.Debug("Current Entry wasn't preloaded??? Attempting another load");
-               entry.SetStream(_YTAPIManager.GetAudioStream(entry.VideoID).Result);
+               entry.SetStream(await _YTAPIManager.GetAudioStream(entry.VideoID));
           }
 
           _PlayerStateData.CurrentEntry = entry;
@@ -282,7 +283,7 @@ public class MP3Handler {
                // reaches here when song is finished or there is a read failure (CopyToAsync returns immediately on ReadFailure)
 
                await _PlayerStateData.StateLock.WaitAsync();
-          } while (TryPopQueue());
+          } while (await TryPopQueue());
 
           // natural player exit (the queue has become empty)
           _PlayerStateData.CurrentState = PlayerState.Idle;
@@ -342,7 +343,7 @@ public class MP3Handler {
           while (true) {
                // read failures mean immediate exit
                try {
-                    await inputStream.ReadExactlyAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
+                    await inputStream.ReadAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
                } catch (Exception e) {
                     Log.Debug("UNEXPECTED READ FAIL: " + e.Message);
                     return;

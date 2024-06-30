@@ -57,9 +57,13 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                YoutubeID = "dQw4w9WgXcQ";
           }
           Video? VideoData = await ytAPIManager.GetVideoData(YoutubeID);
+          if (VideoData ==  null) {
+               await ModifyOriginalResponseAsync((m) => m.Content = "couldn't get video data");
+               return;
+          }
 
           // check if it is a URL, other wise look it up on Youtube
-          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Entry(YoutubeID, Context.User as SocketGuildUser, null, VideoData))) {
+          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Entry(YoutubeID, Context.User as SocketGuildUser, VideoData))) {
                case PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
@@ -294,21 +298,22 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("volume", "set the volume")]
      public async Task Volume([Summary(description: "A number between 0 and 100"), MinValue(0), MaxValue(100)] int? volume = null) {
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+await Task.CompletedTask;
+          // GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
 
-          float Volume = guildData._MP3Handler.Volume;
+          // float Volume = guildData._MP3Handler.Volume;
 
-          if (volume == null) {
-               await RespondAsync($"Current Volume: {Volume * 100:0.}%");
-               return;
-          }
+          // if (volume == null) {
+          //      await RespondAsync($"Current Volume: {Volume * 100:0.}%");
+          //      return;
+          // }
 
-          if (volume.Value > 100 || volume.Value < 0) {
-               Log.Error($"volume cannot be out of range of [0, 100]: {volume.Value}");
-               volume = int.Clamp(volume.Value, 0, 100);
-          }
-          guildData._MP3Handler.Volume = (float)volume.Value / 100;
-          await RespondAsync($"Changed volume from: {Volume * 100:0.}% to {guildData._MP3Handler.Volume * 100:0.}%");
+          // if (volume.Value > 100 || volume.Value < 0) {
+          //      Log.Error($"volume cannot be out of range of [0, 100]: {volume.Value}");
+          //      volume = int.Clamp(volume.Value, 0, 100);
+          // }
+          // guildData._MP3Handler.Volume = (float)volume.Value / 100;
+          // await RespondAsync($"Changed volume from: {Volume * 100:0.}% to {guildData._MP3Handler.Volume * 100:0.}%");
      }
 
      [SlashCommand("remove", "remove song from queue")]

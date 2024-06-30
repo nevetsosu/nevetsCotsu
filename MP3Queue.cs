@@ -1,5 +1,5 @@
-#define preload
-// #undef preload
+// #define preload
+#undef preload
 
 using Serilog;
 
@@ -221,7 +221,7 @@ public class MP3Queue {
      private bool TryPreloadNext() {
           if (SongQueueNextPreloaded) return true;
           MP3Entry entry;
-          if (TryPeek(out entry) && entry.Stream != null) {
+          if (TryPeek(out entry) && entry.Stream == null) {
                entry.SetStream(_YTAPIManager.GetAudioStream(entry.VideoID).Result);
                SongQueueNextPreloaded = true;
                return true;
@@ -252,7 +252,7 @@ public class MP3Queue {
                }
           }
 #else
-          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
+          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, entry.VideoData);
 #endif
           Looping = true;
           sem.Release();

@@ -47,9 +47,6 @@ public class FFMPEGHandler {
           if (outFilePath == null) {
                outSource = StandardOutIndicator;
                startInfo.RedirectStandardOutput = true;
-          } else if (!File.Exists(outFilePath)) {
-               Log.Debug($"outFilePath: \"{outFilePath}\" does not exist");
-               throw new FileNotFoundException("outFilePath does not exist");
           } else {
                outSource = outFilePath;
           }
@@ -73,9 +70,6 @@ public class FFMPEGHandler {
           if (outFilePath == null) {
                startInfo.RedirectStandardOutput = true;
                outSource = StandardOutIndicator;
-          } else if (!File.Exists(outFilePath)) {
-               Log.Debug($"outFilePath: \"{outFilePath}\" does not exist");
-               return null;
           } else {
                outSource = outFilePath;
           }

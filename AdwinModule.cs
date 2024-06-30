@@ -76,8 +76,8 @@ public class AdwinModule : InteractionModuleBase<SocketInteractionContext> {
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
 
-          IAudioClient? audioClient = await guildData._VoiceStateManager.ConnectAsync(targetChannel);
-          if (audioClient == null) {
+          await guildData._VoiceStateManager.ConnectAsync(targetChannel);
+          if (!guildData._VoiceStateManager.Connected) {
                await ModifyOriginalResponseAsync((m) => m.Content = "Joining Voice...Failed");
                return;
           }
