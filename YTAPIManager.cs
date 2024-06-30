@@ -4,6 +4,7 @@ using YoutubeExplode;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Search;
 using Serilog;
+using YoutubeExplode.Videos.Streams;
 
 public class YTAPIManager {
      private readonly YoutubeClient YTClient;
@@ -76,5 +77,12 @@ public class YTAPIManager {
           var client = new YoutubeClient();
           Video v = await client.Videos.GetAsync(new VideoId("dQw4w9WgXcQ"));
           Log.Debug("video title: " + v.Title);
+     }
+
+     public async Task<Stream> GetAudioStream(VideoId videoID) {
+          var StreamManifest = await YTClient.Videos.Streams.GetManifestAsync(videoID);
+          var AudioStreamInfo = StreamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
+          Stream stream = await YTClient.Videos.Streams.GetAsync(AudioStreamInfo);
+          return stream;
      }
 }
