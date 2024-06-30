@@ -20,7 +20,10 @@ public class FFMPEGHandler {
           _Volume = float.Clamp(volume, 0.0f, 1.0f);
      }
 
-     public Process? TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
+     // possible exceptions:
+     // FileNotFound (input file or output file)
+     // Generic Exception (Process fails to start or spawn)
+     public Process TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "ffmpeg",
                UseShellExecute = false,
@@ -35,7 +38,7 @@ public class FFMPEGHandler {
                startInfo.RedirectStandardInput = true;
           } else if (!File.Exists(inFilePath)) {
                Log.Debug($"inFilePath: \"{inFilePath}\" does not exist");
-               return null;
+               throw new FileNotFoundException("inFilePath does not exist");
           } else {
                inSource = inFilePath;
           }
@@ -46,14 +49,16 @@ public class FFMPEGHandler {
                startInfo.RedirectStandardOutput = true;
           } else if (!File.Exists(outFilePath)) {
                Log.Debug($"outFilePath: \"{outFilePath}\" does not exist");
-               return null;
+               throw new FileNotFoundException("outFilePath does not exist");
           } else {
                outSource = outFilePath;
           }
 
           startInfo.Arguments = $"-hide_banner -loglevel level+panic -progress output.log -i {inSource} -filter:a \"loudnorm, volume={Volume * baseVolume:0.00}\" -ss {start} -ac 2 -f s16le -ar 48000 {outSource}";
           Log.Debug("Spawning ffmpeg with Arguments: " + startInfo.Arguments);
-          return Process.Start(startInfo);
+          Process? ret = Process.Start(startInfo);
+          if (ret == null) throw new Exception("Failed to spawn FFMPEG process");
+          else return ret;
      }
 
      public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
