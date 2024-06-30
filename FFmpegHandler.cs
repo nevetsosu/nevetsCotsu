@@ -97,7 +97,7 @@ public class FFMPEGHandler {
                     Log.Debug($"Generic Stream Exception: {e}");
                }
           }
-          process.Dispose();
+          _ = Task.Run(() => CleanUpProcess(process));
      }
 
      public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token = default, float baseVolume = 1.0f) {
@@ -118,7 +118,8 @@ public class FFMPEGHandler {
                     Log.Debug($"Generic Stream Exception: {e}");
                }
           }
-          process.Dispose();
+
+          _ = Task.Run(() => CleanUpProcess(process));
      }
      public static async Task CleanUpProcess(Process process) {
           try {
