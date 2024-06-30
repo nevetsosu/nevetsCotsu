@@ -18,7 +18,6 @@ public class MP3Queue {
 #endif
      private MP3Entry? LoopingEntry;
      public bool Looping { get; private set; }
-
      private readonly YTAPIManager _YTAPIManager;
      public MP3Queue(YTAPIManager? ytAPIManager = default) {
           Queue = new();
@@ -44,7 +43,7 @@ public class MP3Queue {
 #if preload
           // kill preloaded audio if there is any
           MP3Entry? entry;
-          if (TryPeek(out entry) && entry.HasStream()) {
+          if (TryPeek(out entry) && entry.Stream != null) {
                entry.DisposeStream();
           }
 #endif
@@ -190,7 +189,7 @@ public class MP3Queue {
                return entry;
           }
 #if preload
-          if (LoopingEntry != null && LoopingEntry.HasStream()) {
+          if (LoopingEntry != null && LoopingEntry.Stream != null) {
                Log.Debug("switching the Looping Entry");
                LoopingEntry.DisposeStream();
                LoopingEntry = null;
@@ -222,7 +221,7 @@ public class MP3Queue {
      private bool TryPreloadNext() {
           if (SongQueueNextPreloaded) return true;
           MP3Entry entry;
-          if (TryPeek(out entry) && !entry.HasStream()) {
+          if (TryPeek(out entry) && entry.Stream != null) {
                entry.SetStream(_YTAPIManager.GetAudioStream(entry.VideoID).Result);
                SongQueueNextPreloaded = true;
                return true;
@@ -247,7 +246,7 @@ public class MP3Queue {
           // stop preloading next in the queue when looping is on
           if (SongQueueNextPreloaded) {
                MP3Entry? e;
-               if (TryPeek(out e) && e.HasStream()) {
+               if (TryPeek(out e) && e.Stream != null) {
                     e.DisposeStream();
                     SongQueueNextPreloaded = false;
                }
@@ -270,7 +269,7 @@ public class MP3Queue {
 
 #if preload
           // remove the looping entry preload
-          if (LoopingEntry != null && LoopingEntry.HasStream()) {
+          if (LoopingEntry != null && LoopingEntry.Stream != null) {
               LoopingEntry.DisposeStream();
                LoopingEntry = null;
           }
