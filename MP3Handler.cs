@@ -126,7 +126,8 @@ public class MP3Handler {
           }
 
           // kill the previous FFMPEG
-          _ = Task.Run( () => FFMPEGHandler.CleanUpProcess(_PlayerStateData.CurrentEntry.FFMPEG));
+          Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
+          _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
           _PlayerStateData.CurrentEntry.FFMPEG = null;
 
           // Spawn new FFMPEG at seek location
@@ -176,7 +177,8 @@ public class MP3Handler {
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
           if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
-               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(_PlayerStateData.CurrentEntry.FFMPEG));
+               Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
+               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
                _PlayerStateData.CurrentEntry.FFMPEG = null;
           }
 

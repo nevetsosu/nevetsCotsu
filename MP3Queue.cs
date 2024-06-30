@@ -45,7 +45,8 @@ public class MP3Queue {
           // kill preloaded audio if there is any
           MP3Entry? entry;
           if  (TryPeek(out entry) && entry?.FFMPEG != null) {
-               Task.Run(() => FFMPEGHandler.CleanUpProcess(entry.FFMPEG));
+               System.Diagnostics.Process FFMPEG = entry.FFMPEG;
+               Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
           }
 #endif
           Queue.Clear();
@@ -189,7 +190,8 @@ public class MP3Queue {
 
 #if preload
           if (LoopingEntry?.FFMPEG != null) {
-               _ = Task.Run(() =>FFMPEGHandler.CleanUpProcess(LoopingEntry.FFMPEG));
+               System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
+               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
                LoopingEntry.FFMPEG = null;
           }
 #endif
