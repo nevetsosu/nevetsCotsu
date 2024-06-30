@@ -12,19 +12,44 @@ namespace MP3Logic {
 
      public class MP3Entry : ICloneable {
           public string VideoID;
-          public Process? FFMPEG;
-          public Video? VideoData;
-          public SocketGuildUser? RequestUser;
-          public MP3Entry(string videoID, SocketGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null) {
+          public Video VideoData;
+          public SocketGuildUser RequestUser;
+          public Stream? Stream;
+          public MP3Entry(string videoID, SocketGuildUser requestUser, Video videoData, Stream? stream = null) {
                VideoID = videoID;
-               FFMPEG = ffmpeg;
                VideoData = videoData;
                RequestUser = requestUser;
+               Stream = stream;
           }
 
           public object Clone() {
-               return new MP3Entry(VideoID, RequestUser, FFMPEG, VideoData);
+               return new MP3Entry(VideoID, RequestUser, VideoData, Stream);
           }
+
+          public void DisposeStream() {
+               if (Stream == null) return;
+               else {
+                    try {
+                         Stream.Dispose();
+                    } catch (Exception e) {
+                         Log.Warning("Failedt o dispose stream? perhaps the stream has been disposed twice" + e.ToString());
+                    }
+                    Stream = null;
+               }
+          }
+
+          public void SetStream(Stream stream) {
+               if (Stream != null) {
+                    try {
+                         Stream.Dispose();
+                    } catch (Exception e) {
+                         Log.Warning("previous stream was non null, but failed to dispose, perhaps there is a dispose without nulling the stream somewhere: " + e.ToString());
+                    }
+               }
+
+               Stream = stream;
+          }
+
     }
     public enum PlayerCommandStatus {
           EmptyQueue, Already, Ok, Ok2, Disconnected, InvalidArgument, NotCurrentlyPlaying
@@ -37,11 +62,14 @@ public class MP3Handler {
      }
 
      private struct PlayerStateData {
-          public Task CurrentPlayerTask; // per mp3 instance
+          public Stream? CurrentStream;
           public MP3Entry? CurrentEntry; // per song
+          public Task CurrentPlayerTask; // per mp3 instance
           public PlayerState CurrentState; // global to the mp3 handler instance
           public SemaphoreSlim StateLock; // global to the mp3 handler instance
           public CancellationTokenSource InterruptSource; // per mp3 instance
+
+
           public TimeSpan StartTime;
           public long BytesWritten; // per song
           public PlayerStateData() {
@@ -51,24 +79,25 @@ public class MP3Handler {
                CurrentPlayerTask = Task.CompletedTask;
                BytesWritten = 0;
                CurrentEntry = null;
+               CurrentStream = null;
           }
      }
 
      private readonly VoiceStateManager _VoiceStateManager;
      private readonly MP3Queue SongQueue;
-     private readonly FFMPEGHandler _FFMPEGHandler;
+     private readonly YTAPIManager _YTAPIManager;
      private PlayerStateData _PlayerStateData;
 
-     public float Volume {
-          get => _FFMPEGHandler.Volume;
-          set => _FFMPEGHandler.Volume = value;
-     }
+     // public float Volume {
+     //      get => _YTAPIManager.Volume;
+     //      set => _YTAPIManager.Volume = value;
+     // }
 
-     public MP3Handler(VoiceStateManager voiceStateManager, FFMPEGHandler? ffmpegHandler = null) {
+     public MP3Handler(VoiceStateManager voiceStateManager, YTAPIManager? ytAPIManager = null) {
           _VoiceStateManager = voiceStateManager;
           _PlayerStateData = new();
-          _FFMPEGHandler = ffmpegHandler ?? new FFMPEGHandler();
-          SongQueue = new(_FFMPEGHandler);
+          _YTAPIManager = ytAPIManager ?? new();
+          SongQueue = new(_YTAPIManager);
      }
      public int QueueCount => SongQueue.Count;
      public bool Looping => SongQueue.Looping;
@@ -118,22 +147,20 @@ public class MP3Handler {
           await _PlayerStateData.CurrentPlayerTask;
 
           // check if the bot is still connected
-          SocketVoiceChannel? targetChannel = _VoiceStateManager.ConnectedVoiceChannel;
-          if (targetChannel == null || _PlayerStateData.CurrentEntry?.FFMPEG == null) {
+          SocketVoiceChannel? targetChannel = _VoiceStateManager.GetVoiceChannel();
+          if (targetChannel == null || _PlayerStateData.CurrentEntry?.Stream == null) {
                _PlayerStateData.CurrentState = PlayerState.Paused;
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.Disconnected; // this is more likely to actually indicate the the bot hasnt connected for the first time yet
           }
 
           // kill the previous FFMPEG
-          Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
-          _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
-          _PlayerStateData.CurrentEntry.FFMPEG = null;
+          _PlayerStateData.CurrentEntry.DisposeStream();
 
           // Spawn new FFMPEG at seek location
           _PlayerStateData.StartTime = start;
           Interlocked.And(ref _PlayerStateData.BytesWritten, 0);
-          _PlayerStateData.CurrentEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(_PlayerStateData.CurrentEntry.VideoID, null, 1.0f, start);
+          _PlayerStateData.CurrentEntry.SetStream(await _YTAPIManager.GetAudioStream(_PlayerStateData.CurrentEntry.VideoID));
 
           // play
           _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel, _PlayerStateData.InterruptSource.Token));
@@ -176,11 +203,9 @@ public class MP3Handler {
           // stop the current player and kill the audio process
           InterruptPlayer();
           await _PlayerStateData.CurrentPlayerTask;
-          if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
+          if (_PlayerStateData.CurrentEntry?.Stream != null) {
                Log.Debug("clean previous entry process");
-               Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
-               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
-               _PlayerStateData.CurrentEntry.FFMPEG = null;
+               _PlayerStateData.CurrentEntry.DisposeStream();
           }
 
           // try to load another song
@@ -191,7 +216,7 @@ public class MP3Handler {
           }
 
           // check if the bot is still connected
-          SocketVoiceChannel? targetChannel = _VoiceStateManager.ConnectedVoiceChannel;
+          SocketVoiceChannel? targetChannel = _VoiceStateManager.GetVoiceChannel();
           if (targetChannel == null) {
                _PlayerStateData.CurrentState = PlayerState.Idle;
                _PlayerStateData.StateLock.Release();
@@ -214,11 +239,10 @@ public class MP3Handler {
           MP3Entry? entry;
           if ((entry = SongQueue.TryDequeue()) == null) return false;
 
-          // preloaded again if the entry wasnt already preloaded
-          if (entry.FFMPEG == null) {
+          // load again if the entry wasnt already preloaded
+          if (entry.Stream == null) {
                Log.Debug("Current Entry wasn't preloaded??? Attempting another load");
-               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
-               if (entry.FFMPEG == null) return false; // if the load doesnt work again
+               entry.SetStream(_YTAPIManager.GetAudioStream(entry.VideoID).Result);
           }
 
           _PlayerStateData.CurrentEntry = entry;
@@ -230,37 +254,31 @@ public class MP3Handler {
      // state lock should already be acquired on call
      private async Task StartPlayer(SocketVoiceChannel targetChannnel, CancellationToken token) {
           // return if failed to get AudioClient
-          IAudioClient? AudioClient = await _VoiceStateManager.ConnectAsync(targetChannnel, OnDisconnectAsync);
-          if (AudioClient == null) {
-               Log.Debug("failed to acquire AudioClient, exiting Player");
+          await _VoiceStateManager.ConnectAsync(targetChannnel, OnDisconnectAsync);
+          Stream OutputStream = _VoiceStateManager.GetInputStream();
+          Stream? InputStream = _PlayerStateData.CurrentEntry?.Stream;
+          if (InputStream == null) {
+               Log.Error("input stream is null, exiting player");
+               _PlayerStateData.StateLock.Release();
                return;
           }
-
           do {
-               Process? FFMPEG = _PlayerStateData.CurrentEntry?.FFMPEG;
-               if (FFMPEG == null) {
-                    Log.Debug("_PlayerStateData.CurrentEntry?.FFMPEG is null, exiting Player");
-                    return;
-               }
                _PlayerStateData.CurrentState = PlayerState.Playing;
                _PlayerStateData.StateLock.Release();
 
                // main player time spent
-               Stream input = FFMPEG.StandardOutput.BaseStream;
-               using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
-                    try {
-                         await CopyToAsync(input, output, token);
-                         await output.FlushAsync();
-                         _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
-                    } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
-                         _PlayerStateData.CurrentState = PlayerState.Paused;
-                         return;
-                    } catch (Exception e) {
-                         Log.Debug("generic exception: " + e.Message);
-                    } finally {
-                         Log.Debug("canceled from playing song: " + _PlayerStateData.CurrentEntry?.VideoID);
-                    }
-               };
+               try {
+                    await CopyToAsync(InputStream, OutputStream, token);
+                    await OutputStream.FlushAsync();
+                    InputStream.Dispose();
+               } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
+                    _PlayerStateData.CurrentState = PlayerState.Paused;
+                    return;
+               } catch (Exception e) {
+                    Log.Debug("generic exception: " + e.Message);
+               } finally {
+                    Log.Debug("canceled from playing song: " + _PlayerStateData.CurrentEntry?.VideoID);
+               }
                // reaches here when song is finished or there is a read failure (CopyToAsync returns immediately on ReadFailure)
 
                await _PlayerStateData.StateLock.WaitAsync();
@@ -305,7 +323,7 @@ public class MP3Handler {
           long BufferIndex = -1;
           await _PlayerStateData.StateLock.WaitAsync();
 
-          if (_PlayerStateData.CurrentEntry?.FFMPEG == null) {
+          if (_PlayerStateData.CurrentEntry?.Stream == null) {
                Log.Debug("_PlayerStateData.CurrentFFMPEGSource is null");
                _PlayerStateData.StateLock.Release();
                return BufferIndex;
