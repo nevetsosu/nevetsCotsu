@@ -394,7 +394,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync(embed: embed);
      }
 
-     [SlashCommand("seek", "seek through the current song")]
+     [SlashCommand("seek", "seek through the current song", runMode : RunMode.Async)]
      public async Task Seek([Summary("time", "A specific time in HH:mm:ss format")] string time) {
           TimeSpan start;
           if (!TimeSpan.TryParse(time, out start)) {
