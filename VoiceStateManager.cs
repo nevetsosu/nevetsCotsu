@@ -37,8 +37,7 @@ public class VoiceStateManager {
                await ConnectionTask;
           }
 
-          public SocketVoiceChannel GetVoiceChannel() {
-               if (_VoiceChannel == null) throw new Exception("Voice Channel cannot exist before connection is made");
+          public SocketVoiceChannel? GetVoiceChannel() {
                return _VoiceChannel;
           }
 
@@ -50,18 +49,25 @@ public class VoiceStateManager {
      }
 
      private VoiceState State;
-     private readonly FFMPEGHandler ffmpegHandler;
+     private readonly FFMPEGHandler _FFMPEGHandler;
      private Process FFMPEG;
      private readonly SemaphoreSlim Lock;
 
-     public VoiceStateManager() {
+     public VoiceStateManager(FFMPEGHandler? ffmpegHandler = default) {
           State = new();
           Lock = new(1, 1);
-          ffmpegHandler = new FFMPEGHandler();
+          _FFMPEGHandler = ffmpegHandler ?? new();
 
-          FFMPEG = ffmpegHandler.TrySpawnFFMPEG(null, null, 1.0f);
+          FFMPEG = _FFMPEGHandler.TrySpawnFFMPEG(null, null, 1.0f);
      }
 
+     public SocketVoiceChannel? GetVoiceChannel() {
+          Lock.Wait();
+          SocketVoiceChannel? VoiceChannel = State.GetVoiceChannel();
+          Lock.Release();
+          return VoiceChannel;
+
+     }
      public Stream GetInputStream() {
           return FFMPEG.StandardOutput.BaseStream;
      }
@@ -152,12 +158,17 @@ public class VoiceStateManager {
           await Lock.WaitAsync();
 
           IAudioClient AudioClient = State.GetAudioClient();
-          SocketVoiceChannel VoiceChannel = State.GetVoiceChannel();
+          SocketVoiceChannel? VoiceChannel = State.GetVoiceChannel();
+          if (VoiceChannel == null) {
+               Lock.Release();
+               return;
+          }
+
           int UserCount = VoiceChannel.ConnectedUsers.Count();
 
           Log.Debug($"# Remaining in Channel {VoiceChannel.Id}: {UserCount}");
 
-          if (UserCount <= 1) await NoSemDisconnectAsync(State.GetAudioClient());
+          if (UserCount <= 1) await NoSemDisconnectAsync(AudioClient);
 
           Lock.Release();
      }
