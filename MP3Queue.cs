@@ -179,10 +179,11 @@ public class MP3Queue {
           // if looping, return the current looping entry and prepare a new looping entry
           if (Looping && LoopingEntry != null) {
                entry = LoopingEntry;
+               LoopingEntry = entry.Clone() as MP3Entry;
 #if preload
-               LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
-#else
-               LoopingEntry = new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
+          if (LoopingEntry != null) {
+               LoopingEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+          }
 #endif
                sem.Release();
                return entry;
@@ -215,23 +216,19 @@ public class MP3Queue {
 
      // returns whether there the top of the queue is preloaded (it may already be preloaded)
      // assumes that the sem is already acquired
-     private bool TryPreloadNext() {
 #if preload
+     private bool TryPreloadNext() {
           if (SongQueueNextPreloaded) return true;
-#endif
           MP3Entry? entry;
           if (TryPeek(out entry) && entry != null) {
                entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
-#if preload
                SongQueueNextPreloaded = true;
-#endif
                return true;
           }
-#if preload
           SongQueueNextPreloaded = false;
-#endif
           return false;
      }
+#endif
 
      public async Task EnableLooping(MP3Entry entry) {
           await sem.WaitAsync();
@@ -242,9 +239,9 @@ public class MP3Queue {
                return;
           }
 #if preload
-          LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
 #else
-          LoopingEntry = LoopingEntry ?? new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
+          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
 #endif
           Looping = true;
           sem.Release();
