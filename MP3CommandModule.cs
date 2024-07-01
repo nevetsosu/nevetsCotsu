@@ -407,17 +407,14 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
           switch (await guildData._MP3Handler.Seek(start)) {
-               case PlayerCommandStatus.Ok:
-                    await ModifyOriginalResponseAsync(m => m.Content += "...done");
-                    break;
                case PlayerCommandStatus.NotCurrentlyPlaying:
-                    await ModifyOriginalResponseAsync(m => m.Content += "...nothing is currently playing");
+                    await ModifyOriginalResponseAsync(m => m.Content = "nothing is currently playing");
                     break;
                case PlayerCommandStatus.InvalidArgument:
-                    await ModifyOriginalResponseAsync(m => m.Content += "...Duration unknown, cannot seek right now");
+                    await ModifyOriginalResponseAsync(m => m.Content = "Duration unknown, cannot seek right now");
                     break;
                case PlayerCommandStatus.OutOfRange:
-                    await ModifyOriginalResponseAsync(m => m.Content += "...cannot seek that far ahead");
+                    await ModifyOriginalResponseAsync(m => m.Content = "cannot seek that far ahead");
                     break;
                default:
                     break;
