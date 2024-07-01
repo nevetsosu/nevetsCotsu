@@ -399,6 +399,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           TimeSpan start;
           if (!TimeSpan.TryParse(time, out start)) {
                await RespondAsync("time needs to be in HH:mm:ss format");
+               return;
           }
 
           await RespondAsync("Seeking to: " + start);
