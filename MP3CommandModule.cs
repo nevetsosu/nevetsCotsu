@@ -394,22 +394,30 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           await RespondAsync(embed: embed);
      }
 
-     [SlashCommand("seek", "seek through the current song", runMode : RunMode.Async)]
+     [SlashCommand("seek", "seek through the current song. (but not past the last 30 seconds of the song)", runMode : RunMode.Async)]
      public async Task Seek([Summary("time", "A specific time in HH:mm:ss format")] string time) {
           TimeSpan start;
           if (!TimeSpan.TryParse(time, out start)) {
                await RespondAsync("time needs to be in HH:mm:ss format");
           }
 
+          await RespondAsync("Seeking to: " + start);
+
           Log.Debug("Using time stamp: " + start);
 
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
           switch (await guildData._MP3Handler.Seek(start)) {
                case PlayerCommandStatus.Ok:
-                    await RespondAsync("done");
+                    await ModifyOriginalResponseAsync(m => m.Content += "...done");
                     break;
                case PlayerCommandStatus.NotCurrentlyPlaying:
-                    await RespondAsync("nothing is currently playing");
+                    await ModifyOriginalResponseAsync(m => m.Content += "...nothing is currently playing");
+                    break;
+               case PlayerCommandStatus.InvalidArgument:
+                    await ModifyOriginalResponseAsync(m => m.Content += "...Duration unknown, cannot seek right now");
+                    break;
+               case PlayerCommandStatus.OutOfRange:
+                    await ModifyOriginalResponseAsync(m => m.Content += "...cannot seek that far ahead");
                     break;
                default:
                     break;
