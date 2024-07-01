@@ -75,7 +75,6 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
           Log.Debug("spawn youtube: using total volume: " + (Volume * baseVolume));
-          // startInfo.Arguments = $"-c \"yt-dlp --downloader ffmpeg --downloader-args ffmpeg:\'-ss {start}\' --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
           startInfo.Arguments = $"-c \"yt-dlp --download-sections \'*{start}-inf\' --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
           return Process.Start(startInfo);
      }

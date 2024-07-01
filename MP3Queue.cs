@@ -1,5 +1,5 @@
-#define preload
-// #undef preload
+// #define preload
+#undef preload
 
 using Serilog;
 
