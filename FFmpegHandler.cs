@@ -58,7 +58,7 @@ public class FFMPEGHandler {
 
      public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
-               FileName = "/bin/bash",
+               FileName = "yt-dlp",
                UseShellExecute = false,
                CreateNoWindow = true,
           };
@@ -67,7 +67,7 @@ public class FFMPEGHandler {
           // use standard out if inFilePath is null
           if (outFilePath == null) {
                startInfo.RedirectStandardOutput = true;
-               outSource = StandardOutIndicator;
+               outSource = "-";
           } else if (!File.Exists(outFilePath)) {
                Log.Debug($"outFilePath: \"{outFilePath}\" does not exist");
                return null;
@@ -75,7 +75,7 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
           Log.Debug("spawn youtube: using total volume: " + (Volume * baseVolume));
-          startInfo.Arguments = $"-c \"yt-dlp --download-sections \'*{start}-inf\' --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
+          startInfo.Arguments = $"--quiet --verbose -o {outSource} --downloader ffmpeg --downloader-args \"ffmpeg:-c:a pcm_s16le -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00}\" --download-sections \"*{start}-inf\" -f bestaudio \"{URL}\"";
           return Process.Start(startInfo);
      }
 
