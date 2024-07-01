@@ -27,7 +27,7 @@ namespace MP3Logic {
           }
     }
     public enum PlayerCommandStatus {
-          EmptyQueue, Already, Ok, Ok2, Disconnected, InvalidArgument, NotCurrentlyPlaying
+          EmptyQueue, Already, Ok, Ok2, Disconnected, InvalidArgument, OutOfRange, NotCurrentlyPlaying
      }
 }
 
@@ -111,6 +111,16 @@ public class MP3Handler {
           if (_PlayerStateData.CurrentState != PlayerState.Playing) {
                _PlayerStateData.StateLock.Release();
                return PlayerCommandStatus.NotCurrentlyPlaying;
+          }
+
+          TimeSpan? Duration = _PlayerStateData.CurrentEntry?.VideoData?.Duration;
+          Log.Debug("Duration: " + Duration);
+          if (Duration == null) {
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.InvalidArgument;
+          } else if (start > (Duration - new TimeSpan(0, 0, 30))) { // cannot seek within 30 seconds of the end (seeking too close to the end causes weird behavior with ffmpeg)
+               _PlayerStateData.StateLock.Release();
+               return PlayerCommandStatus.OutOfRange;
           }
 
           // gaurentee that no other player is going to be running at the same time
