@@ -17,7 +17,7 @@ RUN apt install tini
 
 COPY dotnetDiscordBot.csproj .
 COPY dotnetDiscordBot.sln .
-COPY *.cs .
+COPY *.cs ./
 
 RUN dotnet build --configuration Release .
 

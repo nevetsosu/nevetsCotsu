@@ -4,6 +4,8 @@ using YoutubeExplode;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Search;
 using Serilog;
+using YoutubeExplode.Videos.Streams;
+using Discord.Audio;
 
 public class YTAPIManager {
      private readonly YoutubeClient YTClient;
@@ -11,7 +13,7 @@ public class YTAPIManager {
           YTClient = new YoutubeClient();
      }
 
-          public async Task<Video?> GetVideoData(string videoID) {
+     public async Task<Video?> GetVideoData(string videoID) {
           return await YTClient.Videos.GetAsync(new VideoId(videoID));
      }
 
@@ -77,4 +79,38 @@ public class YTAPIManager {
           Video v = await client.Videos.GetAsync(new VideoId("dQw4w9WgXcQ"));
           Log.Debug("video title: " + v.Title);
      }
+
+     public async Task<Stream> GetAudioStream(VideoId videoID) {
+          var StreamManifest = await YTClient.Videos.Streams.GetManifestAsync(videoID);
+          var AudioStreams = StreamManifest.GetAudioStreams();
+
+          Log.Debug($"Found {AudioStreams.Count()} streams");
+
+          var AudioStreamInfo = AudioStreams.GetWithHighestBitrate();
+
+          Log.Debug($"Choose stream URL: {AudioStreamInfo.Url}");
+
+          Stream stream = await YTClient.Videos.Streams.GetAsync(AudioStreamInfo);
+
+          return stream;
+     }
+
+     // public async Task TestReadAudioStream(VideoId VideoID) {
+     //      var StreamManifest = await YTClient.Videos.Streams.GetManifestAsync(VideoID);
+     //      var AudioStreams = StreamManifest.GetAudioStreams();
+
+     //      Log.Debug($"Found {AudioStreams.Count()} streams");
+
+     //      var AudioStreamInfo = AudioStreams.GetWithHighestBitrate();
+
+     //      Log.Debug($"Choose stream URL: {AudioStreamInfo.Url}");
+
+     //      byte[] buffer = new byte[1000];
+     //      int red;
+     //      using (Stream stream = await YTClient.Videos.Streams.GetAsync(AudioStreamInfo)) {
+     //           red = await stream.ReadAsync(buffer, 0, 1000);
+     //      }
+
+     //      Log.Debug($"Red : {red} bytes");
+     // }
 }

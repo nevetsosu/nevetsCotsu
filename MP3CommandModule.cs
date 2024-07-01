@@ -396,24 +396,25 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("seek", "seek through the current song", runMode : RunMode.Async)]
      public async Task Seek([Summary("time", "A specific time in HH:mm:ss format")] string time) {
-          TimeSpan start;
-          if (!TimeSpan.TryParse(time, out start)) {
-               await RespondAsync("time needs to be in HH:mm:ss format");
-          }
+     //      TimeSpan start;
+     //      if (!TimeSpan.TryParse(time, out start)) {
+     //           await RespondAsync("time needs to be in HH:mm:ss format");
+     //      }
 
-          Log.Debug("Using time stamp: " + start);
+     //      Log.Debug("Using time stamp: " + start);
 
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
-          switch (await guildData._MP3Handler.Seek(start)) {
-               case PlayerCommandStatus.Ok:
-                    await RespondAsync("done");
-                    break;
-               case PlayerCommandStatus.NotCurrentlyPlaying:
-                    await RespondAsync("nothing is currently playing");
-                    break;
-               default:
-                    break;
-          };
+     //      GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+     //      switch (await guildData._MP3Handler.Seek(start)) {
+     //           case PlayerCommandStatus.Ok:
+     //                await RespondAsync("done");
+     //                break;
+     //           case PlayerCommandStatus.NotCurrentlyPlaying:
+     //                await RespondAsync("nothing is currently playing");
+     //                break;
+     //           default:
+     //                break;
+     //      };
+          await RespondAsync("Not currently implemented");
      }
 
 }

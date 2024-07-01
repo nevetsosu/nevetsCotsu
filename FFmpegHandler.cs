@@ -9,18 +9,23 @@ public class FFMPEGHandler {
      }
 
      private float _Volume;
+     private readonly YTAPIManager _YTAPIManager;
      private static readonly string StandardInIndicator = "pipe:0";
      private static readonly string StandardOutIndicator = "pipe:1";
 
-     public FFMPEGHandler() {
+     public FFMPEGHandler(YTAPIManager? ytAPIManager = null) {
           Volume = DefaultVolume;
+          _YTAPIManager = ytAPIManager ?? new();
      }
 
      public void SetVolume(float volume) {
           _Volume = float.Clamp(volume, 0.0f, 1.0f);
      }
 
-     public Process? TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
+     // possible exceptions:
+     // FileNotFound (input file or output file)
+     // Generic Exception (Process fails to start or spawn)
+     public Process TrySpawnFFMPEG(string? inFilePath, string? outFilePath, float baseVolume = 1.0f) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "ffmpeg",
                UseShellExecute = false,
@@ -35,7 +40,7 @@ public class FFMPEGHandler {
                startInfo.RedirectStandardInput = true;
           } else if (!File.Exists(inFilePath)) {
                Log.Debug($"inFilePath: \"{inFilePath}\" does not exist");
-               return null;
+               throw new FileNotFoundException("inFilePath does not exist");
           } else {
                inSource = inFilePath;
           }
@@ -44,40 +49,41 @@ public class FFMPEGHandler {
           if (outFilePath == null) {
                outSource = StandardOutIndicator;
                startInfo.RedirectStandardOutput = true;
-          } else if (!File.Exists(outFilePath)) {
-               Log.Debug($"outFilePath: \"{outFilePath}\" does not exist");
-               return null;
           } else {
                outSource = outFilePath;
           }
 
-          startInfo.Arguments = $"-hide_banner -loglevel level+panic -progress output.log -i {inSource} -filter:a \"loudnorm, volume={Volume * baseVolume:0.00}\" -ss {start} -ac 2 -f s16le -ar 48000 {outSource}";
+          startInfo.Arguments = $"-hide_banner -loglevel level+panic -progress output.log -i {inSource} -af loudnorm,volume={Volume * baseVolume:0.00} -ac 2 -f s16le -ar 48000 {outSource}";
+          // startInfo.Arguments = $"-hide_banner -loglevel level+verbose -progress output.log -i {inSource} -ac 2 -f s16le -ar 48000 {outSource}";
           Log.Debug("Spawning ffmpeg with Arguments: " + startInfo.Arguments);
-          return Process.Start(startInfo);
+          Process? ret = Process.Start(startInfo);
+          if (ret == null) throw new Exception("Failed to spawn FFMPEG process");
+          else return ret;
      }
 
-     public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
-          ProcessStartInfo startInfo = new ProcessStartInfo() {
-               FileName = "/bin/bash",
-               UseShellExecute = false,
-               CreateNoWindow = true,
-          };
-          string URL = @"https://www.youtube.com/v/" + VideoID;
-          string outSource;
-          // use standard out if inFilePath is null
-          if (outFilePath == null) {
-               startInfo.RedirectStandardOutput = true;
-               outSource = StandardOutIndicator;
-          } else if (!File.Exists(outFilePath)) {
-               Log.Debug($"outFilePath: \"{outFilePath}\" does not exist");
-               return null;
-          } else {
-               outSource = outFilePath;
-          }
-          Log.Debug("spawn youtube: using total volume: " + (Volume * baseVolume));
-          // startInfo.Arguments = $"-c \"yt-dlp --downloader ffmpeg --downloader-args ffmpeg:\'-ss {start}\' --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
-          startInfo.Arguments = $"-c \"yt-dlp --download-sections \'*{start}-inf\' --progress -o - -f bestaudio \'{URL}\' 2>ytdlp.err.log | ffmpeg -hide_banner -loglevel level+panic -progress output.log -i pipe:0 -filter:a \'loudnorm, volume={Volume * baseVolume:0.00}\' -ac 2 -f s16le -ar 48000 {outSource}\"";
-          return Process.Start(startInfo);
+     public Process TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
+          Stream YTStream = _YTAPIManager.GetAudioStream(new YoutubeExplode.Videos.VideoId(VideoID)).Result;
+          Process process = TrySpawnFFMPEG(null, outFilePath, baseVolume);
+          const int BUFFERSIZE = 65536;
+          byte[] buffer = new byte[BUFFERSIZE];
+          _ = Task.Run(async () => {
+                    using (YTStream) {
+                         int red;
+                         try {
+                              while ((red = await YTStream.ReadAsync(buffer, 0, BUFFERSIZE)) > 0) {
+                                   await process.StandardInput.BaseStream.WriteAsync(buffer, 0, red);
+                              }
+                              await process.StandardInput.BaseStream.FlushAsync();
+                              process.StandardInput.BaseStream.Close();
+                         } catch (Exception e) {
+                              Log.Debug("Copy from YT to FFMPEG stopped from exception: " + e.Message);
+                         } finally {
+                              Log.Debug("Copy from YT to FFMPEG stopped normally, cleaning up process");
+                         }
+                    }
+          });
+
+          return process;
      }
 
      public async Task YoutubeToStream(string URL, Stream outStream, CancellationToken token = default, float baseVolume = 1.0f) {

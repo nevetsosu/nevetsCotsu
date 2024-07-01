@@ -249,9 +249,11 @@ public class MP3Handler {
                Stream input = FFMPEG.StandardOutput.BaseStream;
                using (Stream output = AudioClient.CreatePCMStream(AudioApplication.Mixed)) {
                     try {
+                         Log.Debug("starting player copy");
                          await CopyToAsync(input, output, token);
                          await output.FlushAsync();
-                         _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+                         Log.Debug("finished flushing player audio");
+                         // _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
                     } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
                          _PlayerStateData.CurrentState = PlayerState.Paused;
                          return;
@@ -318,22 +320,24 @@ public class MP3Handler {
      // public void SetVolume(float volume) => _FFMPEGHandler.SetVolume(volume);
 
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
-          const int BUFFERSIZE = 4096;
+          const int BUFFERSIZE = 65536;
           byte[] buffer = new byte[BUFFERSIZE];
+          int red;
 
           while (true) {
-               // read failures mean immediate exit
                try {
-                    await inputStream.ReadExactlyAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
+                    red = await inputStream.ReadAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
+                    if (red <= 0) return;
                } catch (Exception e) {
                     Log.Debug("UNEXPECTED READ FAIL: " + e.Message);
                     return;
                }
 
-               Interlocked.Add(ref _PlayerStateData.BytesWritten, BUFFERSIZE);
+               // read failures mean immediate exit
+               Interlocked.Add(ref _PlayerStateData.BytesWritten, red);
                // write errors mean OperationCanceledException
                try {
-                    await outputStream.WriteAsync(buffer, 0, BUFFERSIZE, token).ConfigureAwait(false);
+                    await outputStream.WriteAsync(buffer, 0, red, token);
                } catch (OperationCanceledException e) {
                     Log.Debug("write canceled: " + e.Message);
                     throw new OperationCanceledException();
