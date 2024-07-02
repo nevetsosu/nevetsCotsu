@@ -328,7 +328,7 @@ public class MP3Handler {
      // public void SetVolume(float volume) => _FFMPEGHandler.SetVolume(volume);
 
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
-          const int BUFFERSIZE = 65536;
+          const int BUFFERSIZE = 16;
           byte[] buffer = new byte[BUFFERSIZE];
           int red;
           while (true) {
