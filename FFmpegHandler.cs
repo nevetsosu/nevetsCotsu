@@ -3,7 +3,7 @@ using Serilog;
 using YoutubeExplode.Videos;
 
 public class FFMPEGHandler {
-     public static float DefaultVolume = 0.5f;
+     public static float DefaultVolume = 0.2f;
      public float Volume {
           get => _Volume;
           set => SetVolume(value);
