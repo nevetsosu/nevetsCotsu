@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 
 using YoutubeExplode;
 using YoutubeExplode.Videos;
+using YoutubeExplode.Videos.Streams;
 using YoutubeExplode.Search;
 using Serilog;
 
@@ -76,5 +77,18 @@ public class YTAPIManager {
           var client = new YoutubeClient();
           Video v = await client.Videos.GetAsync(new VideoId("dQw4w9WgXcQ"));
           Log.Debug("video title: " + v.Title);
+     }
+
+     public async Task<string> GetMediaURL(VideoId videoID) {
+          var StreamManifest = await YTClient.Videos.Streams.GetManifestAsync(videoID);
+          var AudioStreams = StreamManifest.GetAudioStreams();
+
+          Log.Debug($"Found {AudioStreams.Count()} streams");
+
+          var AudioStreamInfo = AudioStreams.GetWithHighestBitrate();
+
+          Log.Debug($"Choose stream URL: {AudioStreamInfo.Url}");
+
+          return AudioStreamInfo.Url;
      }
 }

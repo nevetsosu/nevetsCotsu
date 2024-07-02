@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Serilog;
+using YoutubeExplode.Videos;
 
 public class FFMPEGHandler {
      public static float DefaultVolume = 0.5f;
@@ -11,9 +12,11 @@ public class FFMPEGHandler {
      private float _Volume;
      private static readonly string StandardInIndicator = "pipe:0";
      private static readonly string StandardOutIndicator = "pipe:1";
+     private readonly YTAPIManager _YTAPIManager;
 
-     public FFMPEGHandler() {
+     public FFMPEGHandler(YTAPIManager? ytAPIManager = null) {
           Volume = DefaultVolume;
+          _YTAPIManager = ytAPIManager ?? new();
      }
 
      public void SetVolume(float volume) {
@@ -58,24 +61,24 @@ public class FFMPEGHandler {
 
      public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
-               FileName = "yt-dlp",
+               FileName = "ffmpeg",
                UseShellExecute = false,
                CreateNoWindow = true,
           };
-          string URL = @"https://www.youtube.com/v/" + VideoID;
+          string URL = _YTAPIManager.GetMediaURL(new VideoId(VideoID)).Result;
           string outSource;
           // use standard out if inFilePath is null
           if (outFilePath == null) {
                startInfo.RedirectStandardOutput = true;
-               outSource = "-";
+               outSource = StandardOutIndicator;
           } else if (!File.Exists(outFilePath)) {
                Log.Debug($"outFilePath: \"{outFilePath}\" does not exist");
                return null;
           } else {
                outSource = outFilePath;
           }
-          Log.Debug("spawn youtube: using total volume: " + (Volume * baseVolume));
-          startInfo.Arguments = $"--buffer-size 16K -o {outSource} --downloader ffmpeg --downloader-args \"ffmpeg:-c:a pcm_s16le -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00}\" --download-sections \"*{start}-inf\" -f bestaudio \"{URL}\"";
+          Log.Debug($"spawn youtube: using total volume: {Volume * baseVolume}\nMedia URL: {URL}");
+          startInfo.Arguments = $"-loglevel verbose -i \"{URL}\" -c:a pcm_s16le -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00} -ss {start} {outSource}";
           return Process.Start(startInfo);
      }
 
