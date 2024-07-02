@@ -66,7 +66,6 @@ public class FFMPEGHandler {
                CreateNoWindow = true,
           };
           string URL = _YTAPIManager.GetMediaURL(new VideoId(VideoID)).Result;
-          // string URL = @"https://www.youtube.com/watch?v=" + VideoID;
           string outSource;
           // use standard out if inFilePath is null
           if (outFilePath == null) {
@@ -102,7 +101,7 @@ public class FFMPEGHandler {
                     Log.Debug($"Generic Stream Exception: {e}");
                }
           }
-          _ = Task.Run(() => CleanUpProcess(process));
+          _ = Task.Run(() => CloseSTDOUTAndCleanProcess(process));
      }
 
      public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token = default, float baseVolume = 1.0f) {
@@ -124,11 +123,12 @@ public class FFMPEGHandler {
                }
           }
 
-          _ = Task.Run(() => CleanUpProcess(process));
+          _ = Task.Run(() => CloseSTDOUTAndCleanProcess(process));
      }
-     public static async Task CleanUpProcess(Process process) {
+     public static async Task CloseSTDOUTAndCleanProcess(Process process) {
           try {
-               process.Kill(entireProcessTree: true);
+               // process.Kill(entireProcessTree: true);
+               process.StandardOutput.Close();
                await process.WaitForExitAsync();
                process.Dispose();
           } catch (Exception e) {
