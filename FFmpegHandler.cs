@@ -75,7 +75,7 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
           Log.Debug("spawn youtube: using total volume: " + (Volume * baseVolume));
-          startInfo.Arguments = $"-o {outSource} --downloader ffmpeg --downloader-args \"ffmpeg:-c:a pcm_s16le -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00}\" --download-sections \"*{start}-inf\" -f bestaudio \"{URL}\"";
+          startInfo.Arguments = $"--buffer-size 16K -o {outSource} --downloader ffmpeg --downloader-args \"ffmpeg:-c:a pcm_s16le -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00}\" --download-sections \"*{start}-inf\" -f bestaudio \"{URL}\"";
           return Process.Start(startInfo);
      }
 
