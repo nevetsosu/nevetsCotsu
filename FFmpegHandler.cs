@@ -78,7 +78,7 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
           Log.Debug($"spawn youtube: using total volume: {Volume * baseVolume}\nMedia URL: {URL}");
-          startInfo.Arguments = $"-loglevel verbose -i \"{URL}\" -c:a pcm_s16le -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00} -ss {start} {outSource}";
+          startInfo.Arguments = $"-loglevel verbose -i \"{URL}\" -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00} -ss {start} {outSource}";
           return Process.Start(startInfo);
      }
 
