@@ -66,6 +66,7 @@ public class FFMPEGHandler {
                CreateNoWindow = true,
           };
           string URL = _YTAPIManager.GetMediaURL(new VideoId(VideoID)).Result;
+          // string URL = @"https://www.youtube.com/watch?v=" + VideoID;
           string outSource;
           // use standard out if inFilePath is null
           if (outFilePath == null) {
@@ -78,7 +79,8 @@ public class FFMPEGHandler {
                outSource = outFilePath;
           }
           Log.Debug($"spawn youtube: using total volume: {Volume * baseVolume}\nMedia URL: {URL}");
-          startInfo.Arguments = $"-loglevel verbose -i \"{URL}\" -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00} -ss {start} {outSource}";
+          // startInfo.Arguments = $"-loglevel verbose -ss {start} -i \"{URL}\" -vn -sn -dn -f s16le -ac 2 -ar 48000 -af loudnorm,volume={Volume * baseVolume:0.00} {outSource}";
+          startInfo.Arguments = $"-loglevel verbose -ss {start} -i \"{URL}\" -vn -sn -dn -f s16le -ac 2 -ar 48000 -af volume={Volume * baseVolume:0.00} {outSource}";
           return Process.Start(startInfo);
      }
 
