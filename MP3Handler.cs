@@ -96,8 +96,7 @@ public class MP3Handler {
           }
 
           // Pause
-          InterruptPlayer();
-          await _PlayerStateData.CurrentPlayerTask;
+          await InterruptPlayer();
           _PlayerStateData.CurrentState = PlayerState.Paused;
 
           _PlayerStateData.StateLock.Release();
@@ -124,8 +123,7 @@ public class MP3Handler {
           }
 
           // gaurentee that no other player is going to be running at the same time
-          InterruptPlayer();
-          await _PlayerStateData.CurrentPlayerTask;
+          await InterruptPlayer();
 
           // check if the bot is still connected
           SocketVoiceChannel? targetChannel = _VoiceStateManager.ConnectedVoiceChannel;
@@ -164,6 +162,7 @@ public class MP3Handler {
                return PlayerCommandStatus.Already;
           }
 
+
           // check if theres anything to play
           if (_PlayerStateData.CurrentState != PlayerState.Paused && !TryPopQueue()) {
                _PlayerStateData.StateLock.Release();
@@ -171,8 +170,7 @@ public class MP3Handler {
           }
 
           // gaurentee that no other player is going to be running at the same time
-          InterruptPlayer();
-          await _PlayerStateData.CurrentPlayerTask;
+          await InterruptPlayer();
 
           // play
           _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel, _PlayerStateData.InterruptSource.Token));
@@ -184,13 +182,12 @@ public class MP3Handler {
           await _PlayerStateData.StateLock.WaitAsync();
 
           // stop the current player and kill the audio process
-          InterruptPlayer();
-          await _PlayerStateData.CurrentPlayerTask;
+          await InterruptPlayer();
           if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
-               Log.Debug("clean previous entry process");
                Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
                _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
                _PlayerStateData.CurrentEntry.FFMPEG = null;
+               Log.Debug("clean previous entry process");
           }
 
           // try to load another song
@@ -214,9 +211,10 @@ public class MP3Handler {
      }
 
      // should be called with the state lock acquired
-     private void InterruptPlayer() {
+     private async Task InterruptPlayer() {
           _PlayerStateData.InterruptSource.Cancel();
           _PlayerStateData.InterruptSource = new();
+          await _PlayerStateData.CurrentPlayerTask;
      }
 
      // should be called with the state lock acquired
@@ -328,23 +326,21 @@ public class MP3Handler {
      // public void SetVolume(float volume) => _FFMPEGHandler.SetVolume(volume);
 
      public async Task CopyToAsync(Stream inputStream, Stream outputStream, CancellationToken token = default) {
-          const int BUFFERSIZE = 65536;
+          const int BUFFERSIZE = 16;
           byte[] buffer = new byte[BUFFERSIZE];
-          int red;
           while (true) {
                // read failures mean immediate exit
                try {
-                    red = await inputStream.ReadAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
-                    if (red <= 0) return;
+                    await inputStream.ReadExactlyAsync(buffer, 0, BUFFERSIZE); // no cancellation token here since using one could desync the totalBytesWritten count
                } catch (Exception e) {
                     Log.Debug("UNEXPECTED READ FAIL: " + e.Message);
                     return;
                }
 
-               Interlocked.Add(ref _PlayerStateData.BytesWritten, red);
+               Interlocked.Add(ref _PlayerStateData.BytesWritten, BUFFERSIZE);
                // write errors mean OperationCanceledException
                try {
-                    await outputStream.WriteAsync(buffer, 0, red, token);
+                    await outputStream.WriteAsync(buffer, 0, BUFFERSIZE, token);
                } catch (OperationCanceledException e) {
                     Log.Debug("write canceled: " + e.Message);
                     throw new OperationCanceledException();
