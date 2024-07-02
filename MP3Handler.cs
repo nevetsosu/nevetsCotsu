@@ -135,7 +135,7 @@ public class MP3Handler {
 
           // kill the previous FFMPEG
           Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
-          _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+          _ = Task.Run(() => FFMPEGHandler.CloseSTDOUTAndCleanProcess(FFMPEG));
           _PlayerStateData.CurrentEntry.FFMPEG = null;
 
           // Spawn new FFMPEG at seek location
@@ -185,7 +185,7 @@ public class MP3Handler {
           await InterruptPlayer();
           if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
                Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
-               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+               _ = Task.Run(() => FFMPEGHandler.CloseSTDOUTAndCleanProcess(FFMPEG));
                _PlayerStateData.CurrentEntry.FFMPEG = null;
                Log.Debug("clean previous entry process");
           }
@@ -259,7 +259,7 @@ public class MP3Handler {
                     try {
                          await CopyToAsync(input, output, token);
                          await output.FlushAsync();
-                         _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+                         _ = Task.Run(() => FFMPEGHandler.CloseSTDOUTAndCleanProcess(FFMPEG));
                     } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
                          _PlayerStateData.CurrentState = PlayerState.Paused;
                          return;
