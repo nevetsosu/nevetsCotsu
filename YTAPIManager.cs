@@ -5,6 +5,7 @@ using YoutubeExplode.Videos;
 using YoutubeExplode.Videos.Streams;
 using YoutubeExplode.Search;
 using Serilog;
+using Discord.Audio;
 
 public class YTAPIManager {
      private readonly YoutubeClient YTClient;
@@ -80,9 +81,15 @@ public class YTAPIManager {
      }
 
      public async Task<string> GetMediaURL(VideoId videoID) {
+          var LiveURL = await YTClient.Videos.GetAsync(videoID);
+          if (LiveURL.Duration == null) try {
+               return await YTClient.Videos.Streams.GetHttpLiveStreamUrlAsync(videoID);
+          } catch (Exception e) {
+               Log.Warning($"Tried to return a live stream link for ID: {videoID} but failed\ntrying a video stream url: {e.ToString}");
+          }
+
           var StreamManifest = await YTClient.Videos.Streams.GetManifestAsync(videoID);
           var AudioStreams = StreamManifest.GetAudioStreams();
-
           Log.Debug($"Found {AudioStreams.Count()} streams");
 
           var AudioStreamInfo = AudioStreams.GetWithHighestBitrate();
