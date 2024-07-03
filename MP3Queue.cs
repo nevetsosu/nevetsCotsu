@@ -257,7 +257,7 @@ public class MP3Queue {
                }
           }
 #else
-          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, null, entry.VideoData);
+          LoopingEntry ??= new MP3Entry(entry.VideoData, entry.RequestUser, null);
 #endif
           Looping = true;
           sem.Release();

@@ -59,13 +59,12 @@ public class FFMPEGHandler {
           return Process.Start(startInfo);
      }
 
-     public Process? TrySpawnYoutubeFFMPEG(string VideoID, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
+     public Process? TrySpawnYoutubeFFMPEG(string URL, string? outFilePath, float baseVolume = 1.0f, TimeSpan start = default) {
           ProcessStartInfo startInfo = new ProcessStartInfo() {
                FileName = "ffmpeg",
                UseShellExecute = false,
                CreateNoWindow = true,
           };
-          string URL = _YTAPIManager.GetMediaURL(new VideoId(VideoID)).Result;
           string outSource;
           // use standard out if inFilePath is null
           if (outFilePath == null) {
