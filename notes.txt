@@ -1,13 +1,14 @@
 Next steps:
      performance tuning
-     passthrough docker health checks to ec2 auto scale
+     media url should be given a mp3 entry so it can have access to the video meta data
      lyrics command (requires new API)
 
 
 For Later:
 go through and consider what should be exception and what should be return (through regular validation check)
 make the queue paged (figure out how to change the pages based on reaction)
+     invalididate previous queue command output once a new queue command is run, or if the queue changes
+     paged queue object that could hold the state
+
 description command
 Rework the multi audio stream muxing ? A single entity that routes the audio streams
-
-// testing if the pipeline still works with a private DockerHub Repo

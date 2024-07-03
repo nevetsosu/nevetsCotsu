@@ -11,19 +11,17 @@ namespace MP3Logic {
      public class MP3Handler;
 
      public class MP3Entry : ICloneable {
-          public string VideoID;
           public Process? FFMPEG;
-          public Video? VideoData;
+          public Video VideoData;
           public SocketGuildUser? RequestUser;
-          public MP3Entry(string videoID, SocketGuildUser? requestUser = null, Process? ffmpeg = null, Video? videoData = null) {
-               VideoID = videoID;
+          public MP3Entry(Video videoData, SocketGuildUser? requestUser = null, Process? ffmpeg = null) {
                FFMPEG = ffmpeg;
                VideoData = videoData;
                RequestUser = requestUser;
           }
 
           public object Clone() {
-               return new MP3Entry(VideoID, RequestUser, FFMPEG, VideoData);
+               return new MP3Entry(VideoData, RequestUser, FFMPEG);
           }
     }
     public enum PlayerCommandStatus {
@@ -141,7 +139,8 @@ public class MP3Handler {
           // Spawn new FFMPEG at seek location
           _PlayerStateData.StartTime = start;
           Interlocked.And(ref _PlayerStateData.BytesWritten, 0);
-          _PlayerStateData.CurrentEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(_PlayerStateData.CurrentEntry.VideoID, null, 1.0f, start);
+          string mediaURL = await YTAPIManager.GetMediaURL(_PlayerStateData.CurrentEntry.VideoData);
+          _PlayerStateData.CurrentEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(mediaURL, null, 1.0f, start);
 
           // play
           _PlayerStateData.CurrentPlayerTask = Task.Run(() => StartPlayer(targetChannel, _PlayerStateData.InterruptSource.Token));
@@ -152,7 +151,7 @@ public class MP3Handler {
      public async Task<PlayerCommandStatus> TryPlay(SocketVoiceChannel targetChannel, MP3Entry? entry = null) {
           await _PlayerStateData.StateLock.WaitAsync();
           // queue as long as the VideoID is not null
-          if (!string.IsNullOrEmpty(entry?.VideoID)) {
+          if (!string.IsNullOrEmpty(entry?.VideoData.Id)) {
                Enqueue(entry);
           }
 
@@ -225,7 +224,7 @@ public class MP3Handler {
           // preloaded again if the entry wasnt already preloaded
           if (entry.FFMPEG == null) {
                Log.Debug("Current Entry wasn't preloaded??? Attempting another load");
-               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoData.Id, null, 1.0f);
                if (entry.FFMPEG == null) return false; // if the load doesnt work again
           }
 
@@ -266,7 +265,7 @@ public class MP3Handler {
                     } catch (Exception e) {
                          Log.Debug("generic exception: " + e.Message);
                     } finally {
-                         Log.Debug("canceled from playing song: " + _PlayerStateData.CurrentEntry?.VideoID);
+                         Log.Debug("canceled from playing song: " + _PlayerStateData.CurrentEntry?.VideoData.Id);
                     }
                };
                // reaches here when song is finished or there is a read failure (CopyToAsync returns immediately on ReadFailure)

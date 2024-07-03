@@ -57,9 +57,13 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                YoutubeID = "dQw4w9WgXcQ";
           }
           Video? VideoData = await ytAPIManager.GetVideoData(YoutubeID);
+          if (VideoData == null) {
+               await ModifyOriginalResponseAsync(m => m.Content = "couldn't get video data");
+               return;
+          }
 
           // check if it is a URL, other wise look it up on Youtube
-          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Entry(YoutubeID, Context.User as SocketGuildUser, null, VideoData))) {
+          switch (await guildData._MP3Handler.TryPlay(targetChannel, new MP3Entry(VideoData, Context.User as SocketGuildUser, null))) {
                case PlayerCommandStatus.EmptyQueue:
                     await ModifyOriginalResponseAsync((m) => m.Content = "queue is empty");
                     break;
@@ -178,6 +182,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                await RespondAsync("no song currently playing");
                return;
           }
+
           await RespondAsync("thinking");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
@@ -204,15 +209,15 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           Log.Debug("GetQueueAsList result: " + QueueEntries.Count);
           for (int i = 0; i < QueueEntries.Count; i++) {
                MP3Entry entry = QueueEntries[i];
-               if (entry.VideoData != null) strBuilder.AppendLine($"\u202A``{i + 1}.``[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})\u202C``{YTAPIManager.FormatTimeSpan(entry.VideoData.Duration)}``");
+               if (entry.VideoData != null) strBuilder.AppendLine($"\u202A``{i + 1}.``[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoData.Id})\u202C``{YTAPIManager.FormatTimeSpan(entry.VideoData.Duration)}``");
                else strBuilder.AppendLine($"``{i}.``Couldn't get song data");
           }
 
           EmbedBuilder builder = new EmbedBuilder()
                          .WithTitle("Now Playing")
-                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoData?.Id})"))
                          .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(data.RequestUser?.Mention ?? "``unknown``"))
-                         .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
+                         .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoData?.Id}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``{AdditionalStatus}"));
 
           if (QueueEntries.Count > 0)
@@ -237,7 +242,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           if (VideoProgressSeconds / 3600 > 0) timestamp = $"{VideoProgressSeconds / 3600:00}:{(VideoProgressSeconds / 60) % 60:00}:{VideoProgressSeconds % 60:00}";
           else timestamp = $"{(VideoProgressSeconds / 60) % 60:0}:{VideoProgressSeconds % 60:00}";
 
-          if (data.VideoData?.Duration != null) {
+          if (data.VideoData.Duration != null) {
                try {
                     timestamp += $"/{YTAPIManager.FormatTimeSpan(data.VideoData.Duration)}";
                } catch (Exception e) {
@@ -253,9 +258,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           Embed embed = new EmbedBuilder()
                          .WithTitle("Now playing")
-                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData?.Title}]({@"https://www.youtube.com/v/" + data.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{data.VideoData.Title}]({@"https://www.youtube.com/v/" + data.VideoData.Id})"))
                          .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(data.RequestUser?.Mention ?? "``unknown``"))
-                         .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoID}/default.jpg")
+                         .WithThumbnailUrl($"https://img.youtube.com/vi/{data.VideoData.Id}/default.jpg")
                          .AddField(new EmbedFieldBuilder().WithName("Progress").WithValue($"``{timestamp}``{AdditionalStatus}"))
                          .Build();
           await ModifyOriginalResponseAsync(m => { m.Content = ""; m.Embed = embed; });
@@ -386,9 +391,9 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
           Embed embed = new EmbedBuilder()
                          .WithTitle("Entry Info")
-                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{entry.VideoData?.Title}]({@"https://www.youtube.com/v/" + entry.VideoID})"))
+                         .AddField(new EmbedFieldBuilder().WithName("Song").WithValue($"[{entry.VideoData.Title}]({@"https://www.youtube.com/v/" + entry.VideoData.Id})"))
                          .AddField(new EmbedFieldBuilder().WithName("Requested By").WithValue(entry.RequestUser?.Mention ?? "``unknown``"))
-                         .WithThumbnailUrl($"https://img.youtube.com/vi/{entry.VideoID}/default.jpg")
+                         .WithThumbnailUrl($"https://img.youtube.com/vi/{entry.VideoData.Id}/default.jpg")
                          .Build();
 
           await RespondAsync(embed: embed);

@@ -8,10 +8,7 @@ using Serilog;
 using Discord.Audio;
 
 public class YTAPIManager {
-     private readonly YoutubeClient YTClient;
-     public YTAPIManager() {
-          YTClient = new YoutubeClient();
-     }
+     private static readonly YoutubeClient YTClient = new YoutubeClient();
 
           public async Task<Video?> GetVideoData(string videoID) {
           return await YTClient.Videos.GetAsync(new VideoId(videoID));
@@ -80,12 +77,16 @@ public class YTAPIManager {
           Log.Debug("video title: " + v.Title);
      }
 
-     public async Task<string> GetMediaURL(VideoId videoID) {
-          var LiveURL = await YTClient.Videos.GetAsync(videoID);
-          if (LiveURL.Duration == null) try {
-               return await YTClient.Videos.Streams.GetHttpLiveStreamUrlAsync(videoID);
-          } catch (Exception e) {
-               Log.Warning($"Tried to return a live stream link for ID: {videoID} but failed\ntrying a video stream url: {e.ToString}");
+     // gets live or regular video id based on video meta data
+     public static async Task<string> GetMediaURL(Video videoMetaData) {
+          var videoID = videoMetaData.Id;
+
+          if (videoMetaData.Duration == null) {
+               try {
+                    return await YTClient.Videos.Streams.GetHttpLiveStreamUrlAsync(videoID);
+               } catch (Exception e) {
+                    Log.Warning($"Tried to return a live stream link for ID: {videoID} but failed\ntrying a video stream url: {e.ToString}");
+               }
           }
 
           var StreamManifest = await YTClient.Videos.Streams.GetManifestAsync(videoID);
