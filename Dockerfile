@@ -11,12 +11,6 @@ RUN apt install wget libopus-dev ffmpeg dotnet-sdk-8.0 -y
 RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /app/bin/yt-dlp
 RUN chmod a+rx /app/bin/yt-dlp  # Make executable
 
-# for process management
-
-COPY dotnetDiscordBot.csproj .
-COPY dotnetDiscordBot.sln .
-COPY *.cs ./
-
-RUN dotnet build --configuration Release .
-
-CMD ["bin/Release/net8.0/dotnetDiscordBot"]
+# copy in app binaries
+COPY bin/Release/net8.0/* .
+CMD ["./dotnetDiscordBot"]
