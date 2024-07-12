@@ -133,7 +133,7 @@ public class MP3Handler {
 
           // kill the previous FFMPEG
           Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
-          _ = Task.Run(() => FFMPEGHandler.CloseSTDOUTAndCleanProcess(FFMPEG));
+          _ = Task.Run(() => FFMPEGHandler.CleanProcess(FFMPEG));
           _PlayerStateData.CurrentEntry.FFMPEG = null;
 
           // Spawn new FFMPEG at seek location
@@ -184,7 +184,7 @@ public class MP3Handler {
           await InterruptPlayer();
           if (_PlayerStateData.CurrentEntry?.FFMPEG != null) {
                Process FFMPEG = _PlayerStateData.CurrentEntry.FFMPEG;
-               _ = Task.Run(() => FFMPEGHandler.CloseSTDOUTAndCleanProcess(FFMPEG));
+               _ = Task.Run(() => FFMPEGHandler.CleanProcess(FFMPEG));
                _PlayerStateData.CurrentEntry.FFMPEG = null;
                Log.Debug("clean previous entry process");
           }
@@ -224,7 +224,7 @@ public class MP3Handler {
           // preloaded again if the entry wasnt already preloaded
           if (entry.FFMPEG == null) {
                Log.Debug("Current Entry wasn't preloaded??? Attempting another load");
-               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoData.Id, null, 1.0f);
+               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(YTAPIManager.GetMediaURL(entry.VideoData).Result, null, 1.0f);
                if (entry.FFMPEG == null) return false; // if the load doesnt work again
           }
 
@@ -258,7 +258,7 @@ public class MP3Handler {
                     try {
                          await CopyToAsync(input, output, token);
                          await output.FlushAsync();
-                         _ = Task.Run(() => FFMPEGHandler.CloseSTDOUTAndCleanProcess(FFMPEG));
+                         _ = Task.Run(() => FFMPEGHandler.CleanProcess(FFMPEG));
                     } catch (OperationCanceledException) { // Happens on Interrupt or when bot is disconnected (writing fails)
                          _PlayerStateData.CurrentState = PlayerState.Paused;
                          return;
