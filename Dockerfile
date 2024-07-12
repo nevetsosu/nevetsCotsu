@@ -5,8 +5,13 @@ ENV PATH="$PATH:/app/bin"
 
 # initial dependencies
 RUN apt update
-RUN apt install libopus-dev ffmpeg dotnet-runtime-8.0 -y
+RUN apt install libopus-dev ffmpeg dotnet-sdk-8.0 -y
+
+# restore dependencies
+COPY dotnetDiscordbot.csproj .
+COPY dotnetDiscordBot.sln .
+RUN dotnet restore .
 
 # copy in app binaries
-COPY bin/Release/net8.0/* .
+COPY bin/Release/net8.0/* ./
 CMD ["./dotnetDiscordBot"]
