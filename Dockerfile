@@ -5,7 +5,7 @@ ENV PATH="$PATH:/app/bin"
 
 # initial dependencies
 RUN apt update
-RUN apt install libopus-dev ffmpeg -y
+RUN apt install libopus-dev ffmpeg dotnet-runtime-8.0 -y
 
 # copy in app binaries
 COPY bin/Release/net8.0/* .
