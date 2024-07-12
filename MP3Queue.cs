@@ -46,7 +46,7 @@ public class MP3Queue {
           MP3Entry? entry;
           if  (TryPeek(out entry) && entry?.FFMPEG != null) {
                System.Diagnostics.Process FFMPEG = entry.FFMPEG;
-               Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+               Task.Run(() => FFMPEGHandler.CleanProcess(FFMPEG));
           }
 #endif
           Queue.Clear();
@@ -184,7 +184,7 @@ public class MP3Queue {
                LoopingEntry = entry.Clone() as MP3Entry;
 #if preload
                if (LoopingEntry != null) {
-                    LoopingEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+                    LoopingEntry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(YTAPIManager.GetMediaURL(entry.VideoData).Result, null, 1.0f);
                }
 #endif
                sem.Release();
@@ -194,7 +194,7 @@ public class MP3Queue {
           if (LoopingEntry?.FFMPEG != null) {
                Log.Debug("switching the Looping Entry");
                System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
-               _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+               _ = Task.Run(() => FFMPEGHandler.CleanProcess(FFMPEG));
                LoopingEntry = null;
           }
 #endif
@@ -225,7 +225,7 @@ public class MP3Queue {
           if (SongQueueNextPreloaded) return true;
           MP3Entry? entry;
           if (TryPeek(out entry) && entry != null) {
-               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f);
+               entry.FFMPEG = _FFMPEGHandler.TrySpawnYoutubeFFMPEG(YTAPIManager.GetMediaURL(entry.VideoData).Result, null, 1.0f);
                SongQueueNextPreloaded = true;
                return true;
           }
@@ -244,14 +244,14 @@ public class MP3Queue {
           }
           if (LoopingEntry == null) Log.Debug("LoopinEntry is currently null on loop enable");
 #if preload
-          LoopingEntry ??= new MP3Entry(entry.VideoID, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(entry.VideoID, null, 1.0f), entry.VideoData);
+          LoopingEntry ??= new MP3Entry(entry.VideoData, entry.RequestUser, _FFMPEGHandler.TrySpawnYoutubeFFMPEG(await YTAPIManager.GetMediaURL(entry.VideoData), null, 1.0f));
 
           // stop preloading next in the queue when looping is on
           if (SongQueueNextPreloaded) {
                MP3Entry? e;
                if (TryPeek(out e) && e.FFMPEG != null) {
                     System.Diagnostics.Process FFMPEG = e.FFMPEG;
-                    _ = Task.Run(() => FFMPEGHandler.CleanUpProcess(FFMPEG));
+                    _ = Task.Run(() => FFMPEGHandler.CleanProcess(FFMPEG));
                     entry.FFMPEG = null;
                     SongQueueNextPreloaded = false;
                }
@@ -276,7 +276,7 @@ public class MP3Queue {
           // remove the looping entry preload
           if (LoopingEntry?.FFMPEG != null) {
                System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
-               _ = Task.Run( () => FFMPEGHandler.CleanUpProcess(FFMPEG));
+               _ = Task.Run( () => FFMPEGHandler.CleanProcess(FFMPEG));
                LoopingEntry = null;
           }
 
