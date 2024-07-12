@@ -14,7 +14,7 @@ class Program {
      {
           GatewayIntents = GatewayIntents.GuildVoiceStates | GatewayIntents.GuildMembers | GatewayIntents.Guilds,
           AlwaysDownloadUsers = true,
-          LogLevel = LogSeverity.Warning,
+          LogLevel = LogSeverity.Debug,
      };
 
      private static readonly InteractionServiceConfig ServiceConfig = new() {
