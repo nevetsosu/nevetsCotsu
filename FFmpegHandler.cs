@@ -100,7 +100,7 @@ public class FFMPEGHandler {
                     Log.Debug($"Generic Stream Exception: {e}");
                }
           }
-          _ = Task.Run(() => CloseSTDOUTAndCleanProcess(process));
+          _ = Task.Run(() => CleanProcess(process));
      }
 
      public async Task ReadFileToStream(string filepath, Stream outStream, CancellationToken token = default, float baseVolume = 1.0f) {
@@ -122,9 +122,9 @@ public class FFMPEGHandler {
                }
           }
 
-          _ = Task.Run(() => CloseSTDOUTAndCleanProcess(process));
+          _ = Task.Run(() => CleanProcess(process));
      }
-     public static async Task CloseSTDOUTAndCleanProcess(Process process) {
+     public static async Task CleanProcess(Process process) {
           try {
                // process.Kill(entireProcessTree: true);
                process.StandardOutput.Close();
