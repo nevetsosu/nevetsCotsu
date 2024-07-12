@@ -1,6 +1,6 @@
 Next steps:
-     performance tuning
-     media url should be given a mp3 entry so it can have access to the video meta data
+     playlist as a query entry (url parse, playlist and queue system similar to spotify or just add to queue)
+     queue pagination
      lyrics command (requires new API)
 
 
