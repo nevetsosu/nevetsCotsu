@@ -8,7 +8,7 @@ RUN apt update
 RUN apt install libopus-dev ffmpeg dotnet-sdk-8.0 -y
 
 # restore dependencies
-COPY dotnetDiscordbot.csproj .
+COPY dotnetDiscordBot.csproj .
 COPY dotnetDiscordBot.sln .
 RUN dotnet restore .
 
