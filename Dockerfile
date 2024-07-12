@@ -11,9 +11,9 @@ RUN apt install libopus-dev ffmpeg dotnet-sdk-8.0 -y
 COPY dotnetDiscordBot.csproj .
 COPY dotnetDiscordBot.sln .
 COPY *.cs ./
-RUN dotnet publish -c Release -o dotnetDiscordBot
+RUN dotnet publish -c Release -o app
 
 # remove source
 RUN rm *.cs
 
-CMD ["./dotnetDiscordBot"]
+CMD ["./app/dotnetDiscordBot"]
