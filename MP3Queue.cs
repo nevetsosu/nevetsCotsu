@@ -272,14 +272,14 @@ public class MP3Queue {
                return;
           }
 
-#if preload
-          // remove the looping entry preload
+          // remove the looping entry
           if (LoopingEntry?.FFMPEG != null) {
                System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
                _ = Task.Run( () => FFMPEGHandler.CleanProcess(FFMPEG));
                LoopingEntry = null;
           }
 
+#if preload
           // preload next in queue
           if (!SongQueueNextPreloaded) {
                TryPreloadNext();
