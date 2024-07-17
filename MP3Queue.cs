@@ -276,7 +276,6 @@ public class MP3Queue {
           if (LoopingEntry?.FFMPEG != null) {
                System.Diagnostics.Process FFMPEG = LoopingEntry.FFMPEG;
                _ = Task.Run( () => FFMPEGHandler.CleanProcess(FFMPEG));
-               LoopingEntry = null;
           }
 
 #if preload
@@ -285,6 +284,7 @@ public class MP3Queue {
                TryPreloadNext();
           } else Log.Warning("next song in the queue is already said to be preloaed after a loop disable??");
 #endif
+          LoopingEntry = null;
           Looping = false;
           sem.Release();
      }
