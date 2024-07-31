@@ -181,7 +181,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
           MP3Entry? data = await guildData._MP3Handler.NowPlaying(); // locks here when queue isnt available
 
           if (data == null) {
-               await RespondAsync("no song currently playing");
+               await ModifyOriginalResponseAsync(m => m.Content = "no song currently playing");
                return;
           }
 
@@ -228,6 +228,7 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("nowplaying", "shows details about the current song")]
      public async Task NowPlaying() {
+          await RespondAsync("thinking");
           GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
           MP3Entry? data = await guildData._MP3Handler.NowPlaying();
 
@@ -235,7 +236,6 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
                await RespondAsync("no song currently playing");
                return;
           }
-          await RespondAsync("thinking");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
           string timestamp;
