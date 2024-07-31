@@ -175,15 +175,15 @@ public class MP3CommandModule : InteractionModuleBase<SocketInteractionContext> 
 
      [SlashCommand("queue", "lists the current song queue")]
      public async Task Queue() {
-          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData()); // error check this line, potential null deref with Context.Guild.Id
-          MP3Entry? data = await guildData._MP3Handler.NowPlaying();
+          await RespondAsync("thinking");
+
+          GuildData guildData = GuildDataDict.GetOrAdd(Context.Guild.Id, new GuildData());
+          MP3Entry? data = await guildData._MP3Handler.NowPlaying(); // locks here when queue isnt available
 
           if (data == null) {
                await RespondAsync("no song currently playing");
                return;
           }
-
-          await RespondAsync("thinking");
 
           long VideoProgressSeconds = await guildData._MP3Handler.NowPlayingProgress();
           string timestamp;
