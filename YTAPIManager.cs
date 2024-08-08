@@ -14,23 +14,6 @@ public class YTAPIManager {
           return await YTClient.Videos.GetAsync(new VideoId(videoID));
      }
 
-     static YTAPIManager() {
-          // Step 1: Create a custom HttpClient with browser-like headers
-          HttpClientHandler handler = new HttpClientHandler();
-
-          // Optionally handle cookies or proxy settings here, if needed
-          // handler.CookieContainer = new CookieContainer();
-
-          HttpClient httpClient = new HttpClient(handler);
-
-          httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36");
-          httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-          httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.5");
-          httpClient.DefaultRequestHeaders.Add("Referer", "https://www.youtube.com");
-
-          YTClient = new YoutubeClient(httpClient);
-     }
-
      public static string FormatTimeSpan(TimeSpan? time = null) {
           Log.Debug ("PTtoNormalTimeStamp processing TimeSpan: " + time.ToString());
           if (time == null) {
